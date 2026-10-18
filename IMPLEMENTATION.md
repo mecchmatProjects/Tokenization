@@ -30,7 +30,7 @@ java -cp target/classes tokenization.Application
 - [x] Словник (спеціальні токени, `minFrequency`, `maxVocabularySize`)
 - [x] Числове представлення, padding/truncation, Bag-of-Words
 - [x] Статистика та експорт у CSV
-- [ ] Консольне меню
+- [x] Консольне меню
 - [ ] Експерименти та вимірювання продуктивності
 
 ### Слово та склади (Syllabls.md)
