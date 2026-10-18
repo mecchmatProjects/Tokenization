@@ -33,7 +33,10 @@ public class StyleProfiler {
 
         analyzers.add(new LexicalAnalyzer());
         analyzers.add(new FrequencyAnalyzer());
-        // TODO: SentenceAnalyzer, PunctuationAnalyzer, RepetitionAnalyzer, NGramAnalyzer
+        analyzers.add(new SentenceAnalyzer());
+        analyzers.add(new PunctuationAnalyzer());
+        analyzers.add(new RepetitionAnalyzer());
+        analyzers.add(new NGramAnalyzer());
     }
 
     public AnalyzedText prepare(Document document) {
