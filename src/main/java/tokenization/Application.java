@@ -1,13 +1,12 @@
 package tokenization;
 
-import tokenization.core.Token;
-import tokenization.normalization.Normalizer;
-import tokenization.preprocessing.TextPreprocessor;
-import tokenization.tokenizer.BasicTokenizer;
-import tokenization.tokenizer.RuleBasedTokenizer;
-import tokenization.tokenizer.Tokenizer;
-import tokenization.tokenizer.WhitespaceTokenizer;
+import tokenization.core.Document;
+import tokenization.pipeline.Dataset;
+import tokenization.pipeline.ProcessedDocument;
+import tokenization.pipeline.TextProcessor;
+import tokenization.vocabulary.Vocabulary;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -19,22 +18,22 @@ public class Application {
         System.out.println("=== Text Tokenizer ===");
 
         // TODO: замінити демонстрацію консольним меню (README §27)
-        String text = "Machine learning is amazing! I have 2 projects.";
-        TextPreprocessor preprocessor = new TextPreprocessor();
-        String processed = preprocessor.process(text);
-        Normalizer normalizer = new Normalizer();
+        Document document = new Document(1, "example", "Machine learning is amazing! I have 2 projects.");
+        TextProcessor processor = new TextProcessor();
+        processor.setMaxLength(12);
+        Dataset dataset = processor.process(List.of(document));
 
-        Tokenizer[] tokenizers = {
-                new WhitespaceTokenizer(),
-                new BasicTokenizer(),
-                new RuleBasedTokenizer()
-        };
-        for (Tokenizer tokenizer : tokenizers) {
-            List<Token> tokens = normalizer.normalize(tokenizer.tokenize(processed));
-            System.out.println(tokenizer.getName() + ": " + Normalizer.texts(tokens));
+        Vocabulary vocabulary = dataset.getVocabulary();
+        System.out.println("Vocabulary:");
+        for (int id = 0; id < vocabulary.size(); id++) {
+            System.out.println("  " + id + " -> " + vocabulary.getToken(id));
         }
 
-        // TODO: словник і числове представлення (README §16-23)
+        ProcessedDocument processed = dataset.getDocuments().get(0);
+        System.out.println("Tokens:  " + processed.getNormalizedTexts());
+        System.out.println("Encoded: " + processed.getEncoded());
+        System.out.println("Padded:  " + Arrays.toString(processed.getPadded()));
+
         // TODO: статистика та експорт (README §25, §28)
     }
 }
