@@ -146,11 +146,23 @@ public class Word {
 
     // ---------- Склади ----------
 
+    /** Розбиття слова на склади за правилами переносу (див. Hyphenator). */
     public List<String> splitIntoSyllables() {
-        // TODO: поділ на склади за правилами переносу (Syllabls.md, пункти 1-3)
-        List<String> result = new ArrayList<>();
-        result.add(getText());
-        return result;
+        return new Hyphenator().split(getText());
+    }
+
+    /** Склади через дефіс, напр. "при-лі-сок". */
+    public String syllablesToString() {
+        return String.join("-", splitIntoSyllables()).replace("--", "-");
+    }
+
+    /** Злиття складів у слово. */
+    public static String mergeSyllables(List<String> syllables) {
+        StringBuilder sb = new StringBuilder();
+        for (String syllable : syllables) {
+            sb.append(syllable);
+        }
+        return sb.toString();
     }
 
     // ---------- Властивості ----------
