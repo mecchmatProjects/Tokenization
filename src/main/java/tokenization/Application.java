@@ -2,6 +2,7 @@ package tokenization;
 
 import tokenization.ui.ConsoleInput;
 import tokenization.ui.TokenizerMenu;
+import tokenization.ui.WordMenu;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
@@ -24,12 +25,14 @@ public class Application {
             System.out.println("=================================");
             System.out.println("1. Text tokenizer (ML dataset)");
             // TODO: 2. Literary text analyzer (README_LITCRITIC.md)
-            // TODO: 3. Ukrainian word and syllables (Syllabls.md)
+            System.out.println("3. Ukrainian word and syllables");
             System.out.println("0. Exit");
 
             int choice = input.readChoice();
             if (choice == 1) {
                 new TokenizerMenu(input).run();
+            } else if (choice == 3) {
+                new WordMenu(input).run();
             } else if (choice == 0) {
                 return;
             } else {

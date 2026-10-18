@@ -100,14 +100,16 @@ class WordTest {
 
     @Test
     void fileLineFormat() {
-        assertEquals("NOUN;при;ліс;ок;;MASCULINE;SINGULAR;NONE;NOMINATIVE", prylisok().toFileLine());
+        assertEquals("NOUN;при;ліс;ок;;MASCULINE;SINGULAR;NONE;NOMINATIVE;", prylisok().toFileLine());
         assertThrows(IllegalArgumentException.class, () -> Word.fromFileLine("NOUN;ліс"));
+        // старий формат без додаткового поля теж читається
+        assertEquals("ліс", Word.fromFileLine("NOUN;;ліс;;;MASCULINE;SINGULAR;NONE;NOMINATIVE").getText());
     }
 
     @Test
     void readsFromConsole() {
-        // префікси, корені, суфікси, закінчення, рід, число, особа, відмінок
-        String input = "\nкниг\n\nа\n2\n\n\n1\n";
+        // префікси, корені, суфікси, закінчення, рід, число, особа, відмінок, істота
+        String input = "\nкниг\n\nа\n2\n\n\n1\n\n";
         Word word = new Noun();
         word.readFromConsole(new Scanner(input));
 

@@ -175,10 +175,9 @@ public class Word {
 
     /**
      * Переводить слово в інше число та відмінок, замінюючи закінчення.
-     * Базовий клас не знає правил словозміни, тому це вміють лише наслідники.
+     * Правила словозміни знають лише наслідники; незмінні слова (прислівники тощо) форму не змінюють.
      */
     public void changeForm(GrammaticalNumber newNumber, GrammaticalCase newCase) {
-        // TODO: таблиці закінчень у наслідниках (Noun, Adjective, Numeral)
         throw new UnsupportedOperationException(type.getDisplayName() + " cannot change its form");
     }
 
@@ -272,7 +271,7 @@ public class Word {
     }
 
     /** Показує нумерований список значень і повертає індекс вибраного. */
-    private static int chooseIndex(Scanner scanner, String title, Object[] values, int current) {
+    public static int chooseIndex(Scanner scanner, String title, Object[] values, int current) {
         StringBuilder sb = new StringBuilder(title + ": ");
         for (int i = 0; i < values.length; i++) {
             sb.append(i + 1).append(") ").append(values[i]).append("  ");
@@ -295,20 +294,29 @@ public class Word {
 
     /**
      * Один рядок файлу:
-     * ТИП;префікси;корені;суфікси;закінчення;РІД;ЧИСЛО;ОСОБА;ВІДМІНОК
-     * частини одного виду записуються через кому, напр. NOUN;при;ліс;ок;;MASCULINE;SINGULAR;NONE;NOMINATIVE
+     * ТИП;префікси;корені;суфікси;закінчення;РІД;ЧИСЛО;ОСОБА;ВІДМІНОК;ДОДАТКОВО
+     * частини одного виду записуються через кому, напр. NOUN;при;ліс;ок;;MASCULINE;SINGULAR;NONE;NOMINATIVE;
+     * Останнє поле залежить від наслідника (істота, дієвідміна, порядковий числівник) і може бути порожнім.
      */
     public String toFileLine() {
         return type.name() + ";" + String.join(",", prefixes) + ";" + String.join(",", roots) + ";"
                 + String.join(",", suffixes) + ";" + ending + ";" + gender.name() + ";" + number.name() + ";"
-                + person.name() + ";" + grammaticalCase.name();
+                + person.name() + ";" + grammaticalCase.name() + ";" + getExtraField();
+    }
+
+    /** Додаткова властивість наслідника для запису у файл. */
+    protected String getExtraField() {
+        return "";
+    }
+
+    protected void setExtraField(String value) {
     }
 
     public static Word fromFileLine(String line) {
         // -1, щоб порожні поля в кінці рядка не відкидались
         String[] fields = line.split(";", -1);
-        if (fields.length != 9) {
-            throw new IllegalArgumentException("Expected 9 fields, got " + fields.length + ": " + line);
+        if (fields.length != 9 && fields.length != 10) {
+            throw new IllegalArgumentException("Expected 10 fields, got " + fields.length + ": " + line);
         }
         Word word = create(PartOfSpeech.valueOf(fields[0]));
         for (String prefix : splitList(fields[1])) {
@@ -325,6 +333,9 @@ public class Word {
         word.number = GrammaticalNumber.valueOf(fields[6]);
         word.person = Person.valueOf(fields[7]);
         word.grammaticalCase = GrammaticalCase.valueOf(fields[8]);
+        if (fields.length == 10) {
+            word.setExtraField(fields[9]);
+        }
         return word;
     }
 

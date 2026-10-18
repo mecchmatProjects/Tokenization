@@ -13,6 +13,10 @@ public class ConsoleInput {
         this.scanner = scanner;
     }
 
+    public Scanner getScanner() {
+        return scanner;
+    }
+
     /** Рядок від користувача; якщо введено порожній рядок — значення за замовчуванням. */
     public String readLine(String prompt, String defaultValue) {
         if (defaultValue != null && !defaultValue.isEmpty()) {

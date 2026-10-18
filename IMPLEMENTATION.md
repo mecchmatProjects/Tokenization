@@ -37,7 +37,7 @@ java -cp target/classes tokenization.Application
 
 - [x] Клас `Word`: властивості, частини слова, введення/виведення
 - [x] Поділ слова на склади за правилами переносу
-- [ ] Наслідники `Noun`, `Verb`, `Adjective`, `Numeral`, зміна числа та відмінка
+- [x] Наслідники `Noun`, `Verb`, `Adjective`, `Numeral`, зміна числа та відмінка
 
 ### Літературний аналіз (README_LITCRITIC.md)
 
