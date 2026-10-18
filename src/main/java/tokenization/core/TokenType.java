@@ -9,5 +9,10 @@ public enum TokenType {
     PUNCTUATION,
     SPECIAL,
     WHITESPACE,
-    UNKNOWN
+    UNKNOWN,
+
+    // типи, які розпізнає лише Rule-based токенізатор (README §11, стратегія 3)
+    URL,
+    EMAIL,
+    DATE
 }

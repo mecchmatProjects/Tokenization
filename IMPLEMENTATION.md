@@ -24,7 +24,7 @@ java -cp target/classes tokenization.Application
 - [x] Завантаження `.txt` файлів та каталогів
 - [x] Попередня обробка тексту
 - [x] Whitespace та Basic токенізатори
-- [ ] Rule-based токенізатор (числа, email, URL, дати, дефіси, апострофи, скорочення)
+- [x] Rule-based токенізатор (числа, email, URL, дати, дефіси, апострофи, скорочення)
 - [ ] Нормалізація та stop words
 - [ ] Спрощена лематизація
 - [ ] Словник (спеціальні токени, `minFrequency`, `maxVocabularySize`)
