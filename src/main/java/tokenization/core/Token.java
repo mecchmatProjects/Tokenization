@@ -8,6 +8,8 @@ public class Token {
     private final String text;
     // текст після нормалізації (нижній регістр, <URL> тощо); спочатку збігається з text
     private String normalizedText;
+    // базова форма слова; null, якщо лематизація не виконувалась
+    private String lemma;
     private final TokenType type;
     // позиція першого символу токена в тексті
     private final int position;
@@ -32,6 +34,15 @@ public class Token {
 
     public void setNormalizedText(String normalizedText) {
         this.normalizedText = normalizedText;
+    }
+
+    /** Лема токена, або нормалізований текст, якщо лему ще не визначено. */
+    public String getLemma() {
+        return lemma != null ? lemma : normalizedText;
+    }
+
+    public void setLemma(String lemma) {
+        this.lemma = lemma;
     }
 
     public TokenType getType() {

@@ -27,6 +27,7 @@ public class Normalizer {
     private boolean lemmatize = false;
 
     private StopWords stopWords;
+    private Lemmatizer lemmatizer;
 
     public List<Token> normalize(List<Token> tokens) {
         List<Token> result = new ArrayList<>();
@@ -54,7 +55,10 @@ public class Normalizer {
             } else if (replaceEmails && type == TokenType.EMAIL) {
                 value = EMAIL_TOKEN;
             }
-            // TODO: зведення слів до базової форми (README §15), якщо lemmatize = true
+            if (lemmatize && type == TokenType.WORD) {
+                value = getLemmatizer().lemmatize(value);
+                token.setLemma(value);
+            }
 
             token.setNormalizedText(value);
             result.add(token);
@@ -71,12 +75,19 @@ public class Normalizer {
         return result;
     }
 
-    // список stop words завантажується лише тоді, коли він справді потрібен
+    // словники завантажуються лише тоді, коли вони справді потрібні
     private StopWords getStopWords() {
         if (stopWords == null) {
             stopWords = StopWords.loadDefault();
         }
         return stopWords;
+    }
+
+    private Lemmatizer getLemmatizer() {
+        if (lemmatizer == null) {
+            lemmatizer = new Lemmatizer();
+        }
+        return lemmatizer;
     }
 
     public void setStopWords(StopWords stopWords) {
