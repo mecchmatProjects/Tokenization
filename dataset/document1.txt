@@ -1,0 +1,9 @@
+Machine learning is amazing! I have 2 projects.
+
+Machine learning is a field of study that gives computers the ability to learn
+from data without being explicitly programmed. A machine learning model is trained
+on a dataset, and then the model is used to make predictions on new data.
+
+The quality of the data is very important. If the data is noisy, the model will
+learn the noise. That's why data preparation takes up to 80% of the time in a
+typical machine learning project.

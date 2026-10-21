@@ -1,0 +1,9 @@
+Tokenization is the first step of text processing. The tokenizer splits the text
+into tokens: words, numbers, punctuation marks and special symbols.
+
+Consider the sentence "Hello, world! Price = 12.50$". A simple whitespace tokenizer
+keeps "Hello," as one token, while a better tokenizer separates the comma.
+Constructions like COVID-19, C++, mother-in-law and don't are harder to handle...
+
+Contact me at test@example.com or visit https://example.com/tokenizers for details.
+The temperature is -12.5 C. The meeting was on 12.05.2024 at the U.S.A. office.
