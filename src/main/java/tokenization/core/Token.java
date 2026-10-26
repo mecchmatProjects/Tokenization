@@ -6,6 +6,8 @@ package tokenization.core;
 public class Token {
 
     private final String text;
+    // текст після нормалізації (нижній регістр, <URL> тощо); спочатку збігається з text
+    private String normalizedText;
     private final TokenType type;
     // позиція першого символу токена в тексті
     private final int position;
@@ -15,12 +17,21 @@ public class Token {
 
     public Token(String text, TokenType type, int position) {
         this.text = text;
+        this.normalizedText = text;
         this.type = type;
         this.position = position;
     }
 
     public String getText() {
         return text;
+    }
+
+    public String getNormalizedText() {
+        return normalizedText;
+    }
+
+    public void setNormalizedText(String normalizedText) {
+        this.normalizedText = normalizedText;
     }
 
     public TokenType getType() {

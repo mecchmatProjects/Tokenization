@@ -1,6 +1,7 @@
 package tokenization;
 
 import tokenization.core.Token;
+import tokenization.normalization.Normalizer;
 import tokenization.preprocessing.TextPreprocessor;
 import tokenization.tokenizer.BasicTokenizer;
 import tokenization.tokenizer.RuleBasedTokenizer;
@@ -21,6 +22,7 @@ public class Application {
         String text = "Machine learning is amazing! I have 2 projects.";
         TextPreprocessor preprocessor = new TextPreprocessor();
         String processed = preprocessor.process(text);
+        Normalizer normalizer = new Normalizer();
 
         Tokenizer[] tokenizers = {
                 new WhitespaceTokenizer(),
@@ -28,11 +30,10 @@ public class Application {
                 new RuleBasedTokenizer()
         };
         for (Tokenizer tokenizer : tokenizers) {
-            List<Token> tokens = tokenizer.tokenize(processed);
-            System.out.println(tokenizer.getName() + ": " + tokens);
+            List<Token> tokens = normalizer.normalize(tokenizer.tokenize(processed));
+            System.out.println(tokenizer.getName() + ": " + Normalizer.texts(tokens));
         }
 
-        // TODO: нормалізація (README §13-15)
         // TODO: словник і числове представлення (README §16-23)
         // TODO: статистика та експорт (README §25, §28)
     }

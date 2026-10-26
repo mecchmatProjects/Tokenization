@@ -25,7 +25,7 @@ java -cp target/classes tokenization.Application
 - [x] Попередня обробка тексту
 - [x] Whitespace та Basic токенізатори
 - [x] Rule-based токенізатор (числа, email, URL, дати, дефіси, апострофи, скорочення)
-- [ ] Нормалізація та stop words
+- [x] Нормалізація та stop words
 - [ ] Спрощена лематизація
 - [ ] Словник (спеціальні токени, `minFrequency`, `maxVocabularySize`)
 - [ ] Числове представлення, padding/truncation, Bag-of-Words
