@@ -27,7 +27,7 @@ java -cp target/classes tokenization.Application
 - [x] Rule-based токенізатор (числа, email, URL, дати, дефіси, апострофи, скорочення)
 - [x] Нормалізація та stop words
 - [x] Спрощена лематизація
-- [ ] Словник (спеціальні токени, `minFrequency`, `maxVocabularySize`)
+- [x] Словник (спеціальні токени, `minFrequency`, `maxVocabularySize`)
 - [ ] Числове представлення, padding/truncation, Bag-of-Words
 - [ ] Статистика та експорт у CSV
 - [ ] Консольне меню
