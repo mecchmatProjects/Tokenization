@@ -1,0 +1,15 @@
+# Visual Studio Code settings
+.vscode/
+
+# C++ Build artifacts (MSVC)
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.manifest
+
+# Temporary & build folders
+build/
+bin/
+out/
