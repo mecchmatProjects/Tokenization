@@ -4,17 +4,17 @@
 #include "../include/Vocabulary.h"
 
 int main() {
-    // 1. Load mock dataset (24 total tokens across 3 documents)
+    // 1. Load mock dataset
     Dataset dataset = MockData::createSampleDataset();
 
-    // 2. Build bidirectional vocabulary
+    // 2. Build bidirectional vocabulary with reserved special tokens
     Vocabulary vocab;
     vocab.buildFromDataset(dataset);
     vocab.assignIdsToDataset(dataset);
 
-    std::cout << "=== Day 2: Bidirectional Vocabulary Test ===\n";
+    std::cout << "=== Bidirectional Vocabulary & Special Tokens Test ===\n";
     std::cout << "Total documents: " << dataset.size() << "\n";
-    std::cout << "Unique tokens in vocabulary: " << vocab.size() << "\n\n";
+    std::cout << "Total vocabulary size (with special tokens): " << vocab.size() << "\n\n";
 
     // 3. Print vocabulary table (ID, Token, Frequency)
     std::cout << std::left << std::setw(8) << "ID" 
@@ -30,21 +30,30 @@ int main() {
                   << freq << "\n";
     }
 
-    // 4. Test bidirectional lookup (Token -> ID and ID -> Token)
-    std::cout << "\n=== Lookup Verification ===\n";
-    std::string testWord = "machine";
-    int id = vocab.getTokenId(testWord);
-    std::cout << "Forward lookup ('" << testWord << "' -> ID): " << id << "\n";
-    std::cout << "Reverse lookup (ID " << id << " -> Token): '" << vocab.getTokenText(id) << "'\n";
-    std::cout << "Unknown word lookup ('neural' -> ID): " << vocab.getTokenId("neural") << "\n";
+    // 4. Verify special tokens and unknown word fallback
+    std::cout << "\n=== Special Tokens & Lookup Verification ===\n";
+    std::cout << "<PAD> ID:   " << vocab.getTokenId(Vocabulary::PAD_TOKEN) << "\n";
+    std::cout << "<UNK> ID:   " << vocab.getTokenId(Vocabulary::UNK_TOKEN) << "\n";
+    std::cout << "<START> ID: " << vocab.getTokenId(Vocabulary::START_TOKEN) << "\n";
+    std::cout << "<END> ID:   " << vocab.getTokenId(Vocabulary::END_TOKEN) << "\n";
 
-    // 5. Verify that tokens inside Document #1 received their IDs
-    std::cout << "\n=== Document #1 Tokens with Assigned IDs ===\n";
-    const auto& doc1 = dataset.getDocuments()[0];
-    for (const auto& token : doc1.tokens) {
+    std::string knownWord = "machine";
+    int knownId = vocab.getTokenId(knownWord);
+    std::cout << "Known word ('" << knownWord << "' -> ID): " << knownId 
+              << " -> '" << vocab.getTokenText(knownId) << "'\n";
+
+    std::string unknownWord = "neural";
+    int unkId = vocab.getTokenId(unknownWord);
+    std::cout << "Out-of-vocabulary word ('" << unknownWord << "' -> ID): " << unkId 
+              << " (" << vocab.getTokenText(unkId) << ")\n";
+
+    // 5. Verify Document #1 sequence framed with <START> and <END>
+    std::cout << "\n=== Document #1 Sequence with Boundary Markers ===\n";
+    std::cout << Vocabulary::START_TOKEN << "(" << Vocabulary::START_ID << ") ";
+    for (const auto& token : dataset.getDocuments()[0].tokens) {
         std::cout << token.text << "(" << token.tokenId << ") ";
     }
-    std::cout << "\n";
+    std::cout << Vocabulary::END_TOKEN << "(" << Vocabulary::END_ID << ")\n";
 
     return 0;
 }

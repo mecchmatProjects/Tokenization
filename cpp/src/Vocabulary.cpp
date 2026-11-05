@@ -1,7 +1,27 @@
 #include "../include/Vocabulary.h"
 
+Vocabulary::Vocabulary() {
+    initSpecialTokens();
+}
+
+void Vocabulary::initSpecialTokens() {
+    const std::vector<std::string> specialTokens = {
+        PAD_TOKEN,
+        UNK_TOKEN,
+        START_TOKEN,
+        END_TOKEN
+    };
+
+    for (const auto& token : specialTokens) {
+        int assignedId = nextId++;
+        tokenToId[token] = assignedId;
+        idToToken[assignedId] = token;
+        tokenFrequencies[token] = 0;
+    }
+}
+
 int Vocabulary::addToken(const std::string& tokenText) {
-    // Always increment token frequency count
+    // Increment token frequency count in the corpus
     tokenFrequencies[tokenText]++;
 
     // Check if the token already has an assigned ID
@@ -10,7 +30,7 @@ int Vocabulary::addToken(const std::string& tokenText) {
         return it->second;
     }
 
-    // Assign a new unique ID for a unseen token
+    // Assign a new unique ID for an unseen token
     int assignedId = nextId++;
     tokenToId[tokenText] = assignedId;
     idToToken[assignedId] = tokenText;
@@ -41,7 +61,7 @@ int Vocabulary::getTokenId(const std::string& tokenText) const {
     if (it != tokenToId.end()) {
         return it->second;
     }
-    return -1; // Token not found (will be replaced with <UNK> ID on Day 3)
+    return UNK_ID; // Fallback to <UNK> ID for out-of-vocabulary tokens
 }
 
 std::string Vocabulary::getTokenText(int id) const {
@@ -49,7 +69,7 @@ std::string Vocabulary::getTokenText(int id) const {
     if (it != idToToken.end()) {
         return it->second;
     }
-    return ""; // ID not found
+    return "";
 }
 
 int Vocabulary::getTokenFrequency(const std::string& tokenText) const {
@@ -73,6 +93,7 @@ void Vocabulary::clear() {
     idToToken.clear();
     tokenFrequencies.clear();
     nextId = 0;
+    initSpecialTokens();
 }
 
 const std::unordered_map<std::string, int>& Vocabulary::getTokenToIdMap() const {
