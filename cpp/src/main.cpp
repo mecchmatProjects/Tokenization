@@ -3,57 +3,49 @@
 #include "../include/MockData.h"
 #include "../include/Vocabulary.h"
 
-int main() {
-    // 1. Load mock dataset
-    Dataset dataset = MockData::createSampleDataset();
-
-    // 2. Build bidirectional vocabulary with reserved special tokens
-    Vocabulary vocab;
-    vocab.buildFromDataset(dataset);
-    vocab.assignIdsToDataset(dataset);
-
-    std::cout << "=== Bidirectional Vocabulary & Special Tokens Test ===\n";
-    std::cout << "Total documents: " << dataset.size() << "\n";
-    std::cout << "Total vocabulary size (with special tokens): " << vocab.size() << "\n\n";
-
-    // 3. Print vocabulary table (ID, Token, Frequency)
-    std::cout << std::left << std::setw(8) << "ID" 
-              << std::setw(16) << "Token" 
+void printVocabulary(const Vocabulary& vocab, const std::string& title) {
+    std::cout << "=== " << title << " ===\n";
+    std::cout << "Total vocabulary size: " << vocab.size() << "\n";
+    std::cout << std::left << std::setw(8) << "ID"
+              << std::setw(16) << "Token"
               << "Frequency\n";
     std::cout << "------------------------------------\n";
 
     for (size_t id = 0; id < vocab.size(); ++id) {
         std::string text = vocab.getTokenText(static_cast<int>(id));
         int freq = vocab.getTokenFrequency(text);
-        std::cout << std::left << std::setw(8) << id 
-                  << std::setw(16) << text 
+        std::cout << std::left << std::setw(8) << id
+                  << std::setw(16) << text
                   << freq << "\n";
     }
+    std::cout << "\n";
+}
 
-    // 4. Verify special tokens and unknown word fallback
-    std::cout << "\n=== Special Tokens & Lookup Verification ===\n";
-    std::cout << "<PAD> ID:   " << vocab.getTokenId(Vocabulary::PAD_TOKEN) << "\n";
-    std::cout << "<UNK> ID:   " << vocab.getTokenId(Vocabulary::UNK_TOKEN) << "\n";
-    std::cout << "<START> ID: " << vocab.getTokenId(Vocabulary::START_TOKEN) << "\n";
-    std::cout << "<END> ID:   " << vocab.getTokenId(Vocabulary::END_TOKEN) << "\n";
+int main() {
+    Dataset dataset = MockData::createSampleDataset();
 
-    std::string knownWord = "machine";
-    int knownId = vocab.getTokenId(knownWord);
-    std::cout << "Known word ('" << knownWord << "' -> ID): " << knownId 
-              << " -> '" << vocab.getTokenText(knownId) << "'\n";
+    // 1. Full vocabulary sorted by frequency (minFrequency = 1, unlimited size)
+    Vocabulary fullVocab;
+    fullVocab.buildFromDataset(dataset, 1, 0);
+    printVocabulary(fullVocab, "Sorted Vocabulary (minFrequency = 1, maxVocabularySize = 0)");
 
-    std::string unknownWord = "neural";
-    int unkId = vocab.getTokenId(unknownWord);
-    std::cout << "Out-of-vocabulary word ('" << unknownWord << "' -> ID): " << unkId 
-              << " (" << vocab.getTokenText(unkId) << ")\n";
+    // 2. Filtered vocabulary by minimum frequency (minFrequency = 2)
+    Vocabulary freqFilteredVocab;
+    freqFilteredVocab.buildFromDataset(dataset, 2, 0);
+    freqFilteredVocab.assignIdsToDataset(dataset);
+    printVocabulary(freqFilteredVocab, "Filtered Vocabulary (minFrequency = 2)");
 
-    // 5. Verify Document #1 sequence framed with <START> and <END>
-    std::cout << "\n=== Document #1 Sequence with Boundary Markers ===\n";
-    std::cout << Vocabulary::START_TOKEN << "(" << Vocabulary::START_ID << ") ";
+    std::cout << "=== Document #1 Tokens After minFrequency = 2 Filtering ===\n";
     for (const auto& token : dataset.getDocuments()[0].tokens) {
-        std::cout << token.text << "(" << token.tokenId << ") ";
+        std::string mappedText = freqFilteredVocab.getTokenText(token.tokenId);
+        std::cout << token.text << " -> ID " << token.tokenId << " (" << mappedText << ")\n";
     }
-    std::cout << Vocabulary::END_TOKEN << "(" << Vocabulary::END_ID << ")\n";
+    std::cout << "\n";
+
+    // 3. Capped vocabulary by maxVocabularySize = 7 (4 special + top 3 corpus tokens)
+    Vocabulary sizeCappedVocab;
+    sizeCappedVocab.buildFromDataset(dataset, 1, 7);
+    printVocabulary(sizeCappedVocab, "Capped Vocabulary (minFrequency = 1, maxVocabularySize = 7)");
 
     return 0;
 }

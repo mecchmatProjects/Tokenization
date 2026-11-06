@@ -27,14 +27,19 @@ private:
     // Registers special tokens at fixed indices (0..3) with initial frequency 0
     void initSpecialTokens();
 
+    // Checks if a token is one of the reserved special tokens
+    bool isSpecialToken(const std::string& tokenText) const;
+
 public:
     Vocabulary();
 
     // Adds a single token to the vocabulary and increments its frequency
     int addToken(const std::string& tokenText);
 
-    // Builds the vocabulary from all documents in the dataset
-    void buildFromDataset(const Dataset& dataset);
+    // Builds sorted and filtered vocabulary from the dataset
+    // minFrequency: minimum occurrences required to keep a token
+    // maxVocabularySize: maximum total tokens including special tokens (0 = unlimited)
+    void buildFromDataset(const Dataset& dataset, int minFrequency = 1, size_t maxVocabularySize = 0);
 
     // Assigns vocabulary IDs directly to Token objects inside the dataset
     void assignIdsToDataset(Dataset& dataset) const;
