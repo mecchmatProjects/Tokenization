@@ -29,7 +29,7 @@ java -cp target/classes tokenization.Application
 - [x] Спрощена лематизація
 - [x] Словник (спеціальні токени, `minFrequency`, `maxVocabularySize`)
 - [x] Числове представлення, padding/truncation, Bag-of-Words
-- [ ] Статистика та експорт у CSV
+- [x] Статистика та експорт у CSV
 - [ ] Консольне меню
 - [ ] Експерименти та вимірювання продуктивності
 
