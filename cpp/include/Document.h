@@ -11,6 +11,7 @@ struct Document {
     
     // Fields populated by Role 3 module (Stage 2 - Vectorization):
     std::vector<int> integerSequence;       // Sequence of numeric token IDs
-    std::vector<int> bowVector;             // Bag-of-Words vector representation
-    std::vector<double> tfidfVector;        // TF-IDF vector representation
+    std::vector<int> oneHotVector;          // Binary presence vector of size |V|
+    std::vector<int> bowVector;             // Bag-of-Words frequency vector of size |V|
+    std::vector<double> tfidfVector;        // TF-IDF weighted vector of size |V|
 };
