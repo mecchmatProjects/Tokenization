@@ -1,87 +1,103 @@
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
+#include <fstream>
+#include <numeric>
 #include "../include/MockData.h"
+#include "../include/Dataset.h"
 #include "../include/Vocabulary.h"
+#include "../include/IntegerEncoder.h"
+#include "../include/OneHotEncoder.h"
+#include "../include/BagOfWordsEncoder.h"
 #include "../include/TfIdfEncoder.h"
 
+namespace fs = std::filesystem;
+
+static void printIntVector(const std::vector<int>& vec) {
+    std::cout << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::cout << vec[i] << (i + 1 < vec.size() ? ", " : "");
+    }
+    std::cout << "]";
+}
+
 int main() {
-    Dataset dataset = MockData::createSampleDataset();
+    // 1. Unified Vectorization on Mock Dataset
+    std::cout << "=== 1. Unified Dataset Vectorization (Mock Corpus) ===\n";
+    Dataset mockDataset = MockData::createSampleDataset();
 
-    // 1. Build full vocabulary (minFrequency = 1, unlimited size -> |V| = 22)
-    Vocabulary fullVocab;
-    fullVocab.buildFromDataset(dataset, 1, 0);
+    Vocabulary vocab;
+    vocab.buildFromDataset(mockDataset, 1, 0);
 
-    TfIdfEncoder tfidfEncoder(false); // Standard formula: IDF(t) = ln(N / df(t))
-    tfidfEncoder.encodeDataset(dataset, fullVocab);
+    IntegerEncoder customIntEncoder;
+    OneHotEncoder oneHotEncoder;
+    BagOfWordsEncoder bowEncoder;
+    TfIdfEncoder tfidfEncoder(false);
 
-    const auto& df = tfidfEncoder.getDocumentFrequencies();
-    const auto& idf = tfidfEncoder.getIdfVector();
+    mockDataset.vectorizeAll(vocab, customIntEncoder, oneHotEncoder, bowEncoder, tfidfEncoder);
 
-    std::cout << "=== 1. Corpus Document Frequency (df) & IDF Table (N = "
-              << tfidfEncoder.getTotalDocuments() << ", |V| = " << fullVocab.size() << ") ===\n";
-    std::cout << std::left << std::setw(6) << "ID"
-              << std::setw(14) << "Token"
-              << std::setw(11) << "CorpusFreq"
-              << std::setw(8) << "df(t)"
-              << "IDF(t) = ln(N/df)\n";
-    std::cout << "--------------------------------------------------------\n";
+    std::cout << "Vocabulary Size: " << vocab.size() << " tokens\n";
+    for (const auto& doc : mockDataset.getDocuments()) {
+        int activeOneHot = std::accumulate(doc.oneHotVector.begin(), doc.oneHotVector.end(), 0);
+        int totalBow = std::accumulate(doc.bowVector.begin(), doc.bowVector.end(), 0);
+        double tfidfSum = std::accumulate(doc.tfidfVector.begin(), doc.tfidfVector.end(), 0.0);
 
-    for (size_t id = 0; id < fullVocab.size(); ++id) {
-        std::string text = fullVocab.getTokenText(static_cast<int>(id));
-        int corpusFreq = fullVocab.getTokenFrequency(text);
-        std::cout << std::left << std::setw(6) << id
-                  << std::setw(14) << text
-                  << std::setw(11) << corpusFreq
-                  << std::setw(8) << df[id]
-                  << std::fixed << std::setprecision(4) << idf[id] << "\n";
-    }
-    std::cout << "\n";
-
-    // 2. Detailed TF, IDF, and TF-IDF Breakdown per Document
-    std::cout << "=== 2. Document TF-IDF Vectors Breakdown (Full Vocabulary) ===\n";
-    for (const auto& doc : dataset.getDocuments()) {
-        auto tf = TfIdfEncoder::computeTermFrequency(doc.tokens, fullVocab);
-        std::cout << "Document #" << doc.id << " (\"" << doc.rawText << "\", |d| = " << doc.tokens.size() << "):\n";
-        std::cout << "  " << std::left << std::setw(6) << "ID"
-                  << std::setw(14) << "Token"
-                  << std::setw(10) << "TF(t,d)"
-                  << std::setw(10) << "IDF(t)"
-                  << "TF-IDF(t,d)\n";
-
-        for (size_t id = 0; id < fullVocab.size(); ++id) {
-            if (tf[id] > 0.0) {
-                std::cout << "  " << std::left << std::setw(6) << id
-                          << std::setw(14) << fullVocab.getTokenText(static_cast<int>(id))
-                          << std::fixed << std::setprecision(4)
-                          << std::setw(10) << tf[id]
-                          << std::setw(10) << idf[id]
-                          << doc.tfidfVector[id] << "\n";
-            }
-        }
-
-        std::cout << "  Non-zero TF-IDF entries: ";
-        for (const auto& [id, val] : TfIdfEncoder::getNonZeroEntries(doc.tfidfVector)) {
-            std::cout << fullVocab.getTokenText(id) << "(ID " << id << ")="
-                      << std::fixed << std::setprecision(4) << val << "  ";
-        }
-        std::cout << "\n------------------------------------------------------------\n";
+        std::cout << "Doc #" << doc.id << " (" << doc.filePath << "):\n";
+        std::cout << "  Integer Seq (len=" << doc.integerSequence.size() << "): ";
+        printIntVector(doc.integerSequence);
+        std::cout << "\n";
+        std::cout << "  One-Hot active indices: " << activeOneHot << " / " << doc.oneHotVector.size() << "\n";
+        std::cout << "  BoW total token count : " << totalBow << "\n";
+        std::cout << "  TF-IDF weights sum    : " << std::fixed << std::setprecision(4) << tfidfSum << "\n";
     }
 
-    // 3. Test TF-IDF with Filtered Vocabulary (minFrequency = 2 -> |V| = 9)
-    Vocabulary filteredVocab;
-    filteredVocab.buildFromDataset(dataset, 2, 0);
-    tfidfEncoder.encodeDataset(dataset, filteredVocab);
+    // 2. Directory Batch Loading Test
+    std::cout << "\n=== 2. Directory Batch Loading (loadFromDirectory) ===\n";
+    const std::string tempDir = "temp_corpus";
+    fs::create_directories(tempDir);
 
-    std::cout << "\n=== 3. TF-IDF on Filtered Vocabulary (minFrequency = 2, |V| = "
-              << filteredVocab.size() << ") ===\n";
-    for (const auto& doc : dataset.getDocuments()) {
-        std::cout << "Doc #" << doc.id << " [";
-        for (size_t i = 0; i < doc.tfidfVector.size(); ++i) {
-            std::cout << std::fixed << std::setprecision(4) << doc.tfidfVector[i]
-                      << (i + 1 < doc.tfidfVector.size() ? ", " : "");
-        }
-        std::cout << "]\n";
+    {
+        std::ofstream(tempDir + "/doc1.txt") << "Machine learning models process text data.";
+        std::ofstream(tempDir + "/doc2.txt") << "Text tokenization builds vocabulary from data.";
+        std::ofstream(tempDir + "/doc3.txt") << "Vectorization transforms tokens into numeric vectors.";
+        std::ofstream(tempDir + "/doc4.txt") << "Machine learning pipelines use TF-IDF vectors!";
     }
+
+    Dataset dirDataset;
+    size_t loadedFiles = dirDataset.loadFromDirectory(tempDir, ".txt", true);
+    std::cout << "Loaded " << loadedFiles << " files from directory '" << tempDir << "/'\n";
+
+    Vocabulary dirVocab;
+    dirVocab.buildFromDataset(dirDataset, 1, 0);
+    dirDataset.vectorizeAll(dirVocab);
+
+    for (const auto& doc : dirDataset.getDocuments()) {
+        std::cout << "  Doc #" << doc.id << " [" << doc.filePath << "] -> "
+                  << doc.tokens.size() << " tokens, IntSeq=";
+        printIntVector(doc.integerSequence);
+        std::cout << "\n";
+    }
+
+    // 3. Batch Processing (Mini-Batch Splitting & Iteration)
+    std::cout << "\n=== 3. Batch Processing (batchSize = 2) ===\n";
+    size_t batchSize = 2;
+    std::vector<Dataset> batches = dirDataset.splitIntoBatches(batchSize);
+    std::cout << "Total Batches Created: " << batches.size() << "\n";
+
+    dirDataset.processInBatches(batchSize, dirVocab, [](Dataset& batch, size_t batchIdx) {
+        std::cout << "  Batch #" << (batchIdx + 1)
+                  << " (documents=" << batch.size() << "): ";
+        for (size_t i = 0; i < batch.size(); ++i) {
+            const auto& d = batch.getDocuments()[i];
+            std::cout << "Doc#" << d.id << "(tokens=" << d.tokens.size()
+                      << ", tfidf_dim=" << d.tfidfVector.size() << ")"
+                      << (i + 1 < batch.size() ? ", " : "");
+        }
+        std::cout << "\n";
+    });
+
+    // Clean up temporary directory so git working tree stays clean
+    fs::remove_all(tempDir);
 
     return 0;
 }
