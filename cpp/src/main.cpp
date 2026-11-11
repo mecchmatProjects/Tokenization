@@ -1,6 +1,10 @@
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
+#include <fstream>
+#include <numeric>
 #include "../include/MockData.h"
+#include "../include/Dataset.h"
 #include "../include/Vocabulary.h"
 #include "../include/StatisticsAnalyzer.h"
 
@@ -24,8 +28,20 @@ void printStatisticsReport(const std::string& title, const CorpusStatistics& sta
     std::cout << "Avg unknown token length:       " << stats.averageUnknownTokenLength << "\n\n";
 }
 
+namespace fs = std::filesystem;
+
+static void printIntVector(const std::vector<int>& vec) {
+    std::cout << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::cout << vec[i] << (i + 1 < vec.size() ? ", " : "");
+    }
+    std::cout << "]";
+}
+
 int main() {
-    Dataset dataset = MockData::createSampleDataset();
+    // 1. Unified Vectorization on Mock Dataset
+    std::cout << "=== 1. Unified Dataset Vectorization (Mock Corpus) ===\n";
+    Dataset mockDataset = MockData::createSampleDataset();
 
     // 1. Statistics with full unfiltered vocabulary (minFrequency = 1, unlimited)
     Vocabulary fullVocab;
@@ -47,6 +63,42 @@ int main() {
     cappedVocab.assignIdsToDataset(dataset);
     CorpusStatistics cappedStats = StatisticsAnalyzer::analyze(dataset, &cappedVocab);
     printStatisticsReport("3. Corpus Statistics (Capped Vocabulary: maxVocabularySize = 7)", cappedStats);
+
+    Dataset dirDataset;
+    size_t loadedFiles = dirDataset.loadFromDirectory(tempDir, ".txt", true);
+    std::cout << "Loaded " << loadedFiles << " files from directory '" << tempDir << "/'\n";
+
+    Vocabulary dirVocab;
+    dirVocab.buildFromDataset(dirDataset, 1, 0);
+    dirDataset.vectorizeAll(dirVocab);
+
+    for (const auto& doc : dirDataset.getDocuments()) {
+        std::cout << "  Doc #" << doc.id << " [" << doc.filePath << "] -> "
+                  << doc.tokens.size() << " tokens, IntSeq=";
+        printIntVector(doc.integerSequence);
+        std::cout << "\n";
+    }
+
+    // 3. Batch Processing (Mini-Batch Splitting & Iteration)
+    std::cout << "\n=== 3. Batch Processing (batchSize = 2) ===\n";
+    size_t batchSize = 2;
+    std::vector<Dataset> batches = dirDataset.splitIntoBatches(batchSize);
+    std::cout << "Total Batches Created: " << batches.size() << "\n";
+
+    dirDataset.processInBatches(batchSize, dirVocab, [](Dataset& batch, size_t batchIdx) {
+        std::cout << "  Batch #" << (batchIdx + 1)
+                  << " (documents=" << batch.size() << "): ";
+        for (size_t i = 0; i < batch.size(); ++i) {
+            const auto& d = batch.getDocuments()[i];
+            std::cout << "Doc#" << d.id << "(tokens=" << d.tokens.size()
+                      << ", tfidf_dim=" << d.tfidfVector.size() << ")"
+                      << (i + 1 < batch.size() ? ", " : "");
+        }
+        std::cout << "\n";
+    });
+
+    // Clean up temporary directory so git working tree stays clean
+    fs::remove_all(tempDir);
 
     return 0;
 }
