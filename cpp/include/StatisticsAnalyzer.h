@@ -1,65 +1,87 @@
 #pragma once
-#include <cstddef>
 #include <string>
+#include <vector>
+#include <unordered_map>
+#include <cstddef>
+#include "Token.h"
 #include "Dataset.h"
 #include "Vocabulary.h"
 
-// Aggregated statistical metrics for a tokenized text corpus
-struct CorpusStatistics {
-    size_t documentCount = 0;               // Total number of documents in the dataset
-    size_t totalRawCharacters = 0;          // Total characters in raw document texts (including spaces)
-    size_t totalTokenCharacters = 0;        // Total characters across all extracted tokens
-    size_t totalTokens = 0;                 // Total number of token occurrences (T)
-    size_t uniqueTokens = 0;                // Number of distinct surface token strings in the corpus
-    size_t inVocabularyUniqueTokens = 0;    // Number of distinct corpus tokens present in Vocabulary
-    size_t unknownTokens = 0;               // Total occurrences of unknown (<UNK>) tokens
-    size_t uniqueUnknownTokens = 0;         // Number of distinct surface tokens mapped to <UNK>
+struct TokenFrequencyInfo {
+    std::string text;
+    int tokenId = -1;
+    TokenType type = TokenType::Unknown;
+    size_t count = 0;
+    double relativeFrequency = 0.0;
+    double percentage = 0.0;
+    size_t documentFrequency = 0;
+};
 
-    double averageDocumentLengthChars = 0.0;   // Average raw characters per document
-    double averageDocumentLengthTokens = 0.0;  // Average tokens per document
-    double averageTokenLength = 0.0;           // Mean character length across all token occurrences
-    double averageUniqueTokenLength = 0.0;     // Mean character length across unique tokens
-    double averageUnknownTokenLength = 0.0;    // Mean character length across unknown token occurrences
-    double unknownTokenRatio = 0.0;            // Percentage/fraction of unknown tokens in [0.0, 1.0]
+struct TokenTypeStats {
+    TokenType type = TokenType::Unknown;
+    std::string typeName;
+    size_t totalCount = 0;
+    size_t uniqueCount = 0;
+    double percentage = 0.0;
+    double avgLength = 0.0;
+};
+
+struct CorpusStatistics {
+    size_t documentCount = 0;
+    size_t totalRawCharacters = 0;
+    size_t totalTokenCharacters = 0;
+    size_t totalTokens = 0;
+    size_t uniqueTokens = 0;
+
+    size_t inVocabUniqueTokens = 0;
+    size_t unknownTokenOccurrences = 0;
+    size_t uniqueUnknownTokens = 0;
+    double unknownTokenRatio = 0.0;
+
+    double avgDocumentLengthChars = 0.0;
+    double avgDocumentLengthTokens = 0.0;
+    double avgTokenLength = 0.0;
+    double avgUniqueTokenLength = 0.0;
+    double avgUnknownTokenLength = 0.0;
+
+    std::unordered_map<TokenType, size_t> tokenTypeCounts;
 };
 
 class StatisticsAnalyzer {
 public:
     StatisticsAnalyzer() = default;
 
-    // Counts total number of documents in the dataset
+    // Comprehensive corpus analysis
+    static CorpusStatistics analyze(const Dataset& dataset);
+    static CorpusStatistics analyze(const Dataset& dataset, const Vocabulary& vocab);
+
+    // Individual metric helpers
     static size_t countDocuments(const Dataset& dataset);
-
-    // Counts total characters in raw text across all documents
-    static size_t countTotalRawCharacters(const Dataset& dataset);
-
-    // Counts total characters inside all extracted tokens across the dataset
-    static size_t countTotalTokenCharacters(const Dataset& dataset);
-
-    // Counts total number of extracted tokens across all documents
+    static size_t countRawCharacters(const Dataset& dataset);
+    static size_t countTokenCharacters(const Dataset& dataset);
     static size_t countTotalTokens(const Dataset& dataset);
-
-    // Counts distinct token strings appearing in the dataset
     static size_t countUniqueTokens(const Dataset& dataset);
-
-    // Counts total occurrences of tokens that resolve to <UNK> or TokenType::Unknown
-    static size_t countUnknownTokens(const Dataset& dataset, const Vocabulary* vocab = nullptr);
-
-    // Counts distinct surface token strings that resolve to <UNK> or TokenType::Unknown
-    static size_t countUniqueUnknownTokens(const Dataset& dataset, const Vocabulary* vocab = nullptr);
-
-    // Calculates mean character length of all token occurrences in the dataset
+    static size_t countUnknownTokenOccurrences(const Dataset& dataset, const Vocabulary& vocab);
+    static size_t countUniqueUnknownTokens(const Dataset& dataset, const Vocabulary& vocab);
     static double calculateAverageTokenLength(const Dataset& dataset);
 
-    // Calculates mean character length of unique token strings in the dataset
-    static double calculateAverageUniqueTokenLength(const Dataset& dataset);
+    // Token frequency analysis
+    static std::unordered_map<std::string, size_t> countTokenFrequencies(const Dataset& dataset);
+    static std::unordered_map<std::string, size_t> countDocumentFrequencies(const Dataset& dataset);
+    static std::vector<TokenFrequencyInfo> getTokenFrequencyTable(
+        const Dataset& dataset,
+        const Vocabulary* vocab = nullptr,
+        size_t topN = 0);
 
-    // Calculates mean character length of unknown (<UNK>) token occurrences
-    static double calculateAverageUnknownTokenLength(const Dataset& dataset, const Vocabulary* vocab = nullptr);
+    // Token type distribution analysis (WORD, NUMBER, PUNCTUATION, SPECIAL, etc.)
+    static std::unordered_map<TokenType, size_t> countTokensByType(const Dataset& dataset);
+    static std::vector<TokenTypeStats> getTokenTypeDistribution(const Dataset& dataset);
 
-    // Computes the complete statistical summary for a dataset (optionally evaluated against a Vocabulary)
-    static CorpusStatistics analyze(const Dataset& dataset, const Vocabulary* vocab = nullptr);
-
-    // Helper method to check if a token is considered unknown
-    static bool isTokenUnknown(const Token& token, const Vocabulary* vocab = nullptr);
+    // Console reporting helpers
+    static void printReport(const CorpusStatistics& stats,
+                            const std::string& title = "Corpus Statistics");
+    static void printTokenFrequencyTable(const std::vector<TokenFrequencyInfo>& table,
+                                         const std::string& title = "Token Frequency Table");
+    static void printTokenTypeDistribution(const std::vector<TokenTypeStats>& distribution,
+                                           const std::string& title = "Token Type Distribution");
 };
