@@ -2,6 +2,9 @@ package tokenization.ui;
 
 import tokenization.core.Document;
 import tokenization.core.Token;
+import tokenization.experiment.PerformanceExperiment;
+import tokenization.experiment.PerformanceResult;
+import tokenization.experiment.TokenizerExperiment;
 import tokenization.io.CsvExporter;
 import tokenization.io.TextLoader;
 import tokenization.normalization.Normalizer;
@@ -56,6 +59,7 @@ public class TokenizerMenu {
             System.out.println("6. Show statistics");
             System.out.println("7. Export dataset");
             System.out.println("8. Compare strategies");
+            System.out.println("9. Experiments");
             System.out.println("0. Back");
 
             int choice = input.readChoice();
@@ -68,6 +72,7 @@ public class TokenizerMenu {
                 case 6 -> showStatistics();
                 case 7 -> export();
                 case 8 -> compareStrategies();
+                case 9 -> runExperiments();
                 case 0 -> {
                     return;
                 }
@@ -239,7 +244,73 @@ public class TokenizerMenu {
     }
 
     private void compareStrategies() {
-        // TODO: таблиця порівняння стратегій та експерименти (README §26, §31)
-        System.out.println("Not implemented yet.");
+        TokenizerExperiment experiment = new TokenizerExperiment();
+        System.out.println(experiment.compareOnExamples());
+        if (documents.isEmpty()) {
+            System.out.println("Load documents to compare strategies on your dataset.");
+        } else {
+            System.out.println("Experiment 1. Strategies on loaded documents");
+            System.out.println(experiment.compareStrategies(documents));
+        }
+    }
+
+    private void runExperiments() {
+        if (documents.isEmpty()) {
+            System.out.println("Load documents first.");
+            return;
+        }
+        TokenizerExperiment experiment = new TokenizerExperiment();
+
+        while (true) {
+            System.out.println();
+            System.out.println("--- Experiments ---");
+            System.out.println("1. Lowercase vs case-sensitive");
+            System.out.println("2. Min frequency");
+            System.out.println("3. Vocabulary size limit");
+            System.out.println("4. Padding");
+            System.out.println("5. Performance");
+            System.out.println("0. Back");
+
+            int choice = input.readChoice();
+            switch (choice) {
+                case 1 -> System.out.println(experiment.lowercaseExperiment(documents));
+                case 2 -> {
+                    int[] values = input.readIntList("minFrequency values", "1 2 5 10");
+                    System.out.println(experiment.minFrequencyExperiment(documents, values));
+                }
+                case 3 -> {
+                    int[] sizes = input.readIntList("Vocabulary sizes", "1000 5000 10000 50000");
+                    System.out.println(experiment.vocabularyLimitExperiment(documents, sizes));
+                }
+                case 4 -> {
+                    int[] lengths = input.readIntList("maxLength values", "10 50 100 200");
+                    System.out.println(experiment.paddingExperiment(documents, lengths));
+                }
+                case 5 -> runPerformance();
+                case 0 -> {
+                    return;
+                }
+                default -> System.out.println("Unknown option.");
+            }
+        }
+    }
+
+    private void runPerformance() {
+        int[] sizesMb = input.readIntList("Sizes in MB (large sizes need a lot of memory)", "1 5 10");
+        int[] sizesKb = new int[sizesMb.length];
+        for (int i = 0; i < sizesMb.length; i++) {
+            sizesKb[i] = sizesMb[i] * 1024;
+        }
+        try {
+            PerformanceExperiment experiment = new PerformanceExperiment();
+            List<PerformanceResult> results = experiment.run(documents, sizesKb);
+            System.out.println(experiment.format(results));
+
+            Path file = Path.of(input.readLine("Save results to CSV", "output/performance.csv"));
+            experiment.exportCsv(results, file);
+            System.out.println("Saved to " + file);
+        } catch (IOException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
     }
 }

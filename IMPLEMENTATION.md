@@ -31,7 +31,7 @@ java -cp target/classes tokenization.Application
 - [x] Числове представлення, padding/truncation, Bag-of-Words
 - [x] Статистика та експорт у CSV
 - [x] Консольне меню
-- [ ] Експерименти та вимірювання продуктивності
+- [x] Експерименти та вимірювання продуктивності
 
 ### Слово та склади (Syllabls.md)
 

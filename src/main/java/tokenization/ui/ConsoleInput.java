@@ -42,6 +42,22 @@ public class ConsoleInput {
         }
     }
 
+    /** Кілька цілих чисел через пробіл або кому, напр. "1 2 5 10". */
+    public int[] readIntList(String prompt, String defaultValue) {
+        while (true) {
+            String[] parts = readLine(prompt, defaultValue).split("[\\s,]+");
+            try {
+                int[] values = new int[parts.length];
+                for (int i = 0; i < parts.length; i++) {
+                    values[i] = Integer.parseInt(parts[i]);
+                }
+                return values;
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter numbers separated by spaces.");
+            }
+        }
+    }
+
     public boolean readYesNo(String prompt, boolean defaultValue) {
         String line = readLine(prompt + " (y/n)", defaultValue ? "y" : "n");
         return line.equalsIgnoreCase("y") || line.equalsIgnoreCase("yes");
