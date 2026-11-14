@@ -17,10 +17,15 @@ add_executable(tokenizer
     cpp/src/TfIdfEncoder.cpp
     cpp/src/StatisticsAnalyzer.cpp
     cpp/src/Exporter.cpp
+    cpp/src/MainWindow.cpp
 )
 
 target_include_directories(tokenizer PRIVATE cpp/include)
 target_link_libraries(tokenizer PRIVATE tokenization)
+
+if(WIN32)
+    target_link_libraries(tokenizer PRIVATE user32 gdi32 comctl32)
+endif()
 
 if(MSVC)
     target_compile_options(tokenizer PRIVATE /utf-8)
