@@ -1,85 +1,52 @@
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <vector>
-#include <filesystem>
-#include <iomanip>
-#include "../include/MockData.h"
-#include "../include/Dataset.h"
-#include "../include/Vocabulary.h"
-#include "../include/StatisticsAnalyzer.h"
-#include "../include/Exporter.h"
+#include "../include/MainWindow.h"
 
-namespace fs = std::filesystem;
-
-static void previewCsvFile(const std::string& filePath, size_t maxLines = 6) {
-    std::ifstream in(filePath);
-    if (!in.is_open()) {
-        std::cout << "  [Error] Could not open " << filePath << "\n";
-        return;
+int main(int argc, char* argv[]) {
+    bool headlessMode = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--headless" || arg == "--no-gui") {
+            headlessMode = true;
+        }
     }
 
-    std::cout << "--- Preview: " << filePath << " ---\n";
-    std::string line;
-    size_t lineCount = 0;
-    while (lineCount < maxLines && std::getline(in, line)) {
-        std::cout << "  " << line << "\n";
-        ++lineCount;
+    std::cout << "=== Tokenizer GUI Framework Verification ===\n\n";
+
+    MainWindow mainWindow("Text Tokenizer - NLP Preprocessing Studio", 760, 560);
+
+    if (!mainWindow.create()) {
+        std::cerr << "Failed to initialize native GUI window.\n";
+        return 1;
     }
-    std::cout << "\n";
-}
 
-int main() {
-    Dataset dataset = MockData::createSampleDataset();
+    // 1. Verify initial default GUI state
+    mainWindow.printConfigReport("1. Initial Default GUI State");
 
-    Vocabulary vocab;
-    vocab.buildFromDataset(dataset, 1, 0);
-    dataset.vectorizeAll(vocab);
+    // 2. Programmatically test switching strategy and toggling case/punctuation flags
+    mainWindow.setSelectedStrategy(TokenizerStrategyType::Basic);
+    mainWindow.setLowercaseEnabled(false);
+    mainWindow.setRemovePunctuationEnabled(true);
+    mainWindow.syncConfigFromControls();
+    mainWindow.printConfigReport("2. Programmatic Control Synchronization Check");
 
-    const std::string outputDir = "export_output";
-    bool exported = Exporter::exportAllToDirectory(dataset, vocab, outputDir);
+    // Restore standard defaults before interactive session
+    GuiConfig defaultConfig;
+    mainWindow.setConfig(defaultConfig);
 
-    std::cout << "=== 1. Batch CSV Export Status ===\n";
-    std::cout << "Export to directory '" << outputDir << "/': "
-              << (exported ? "SUCCESS" : "FAILED") << "\n\n";
-
-    const std::vector<std::string> expectedFiles = {
-        "tokens.csv",
-        "vocabulary.csv",
-        "encoded_dataset.csv",
-        "bow_matrix.csv",
-        "tfidf_matrix.csv",
-        "corpus_statistics.csv",
-        "token_frequencies.csv",
-        "token_types.csv"
-    };
-
-    std::cout << std::left << std::setw(26) << "CSV File Name"
-              << std::setw(12) << "Status"
-              << "Size (bytes)\n";
-    std::cout << std::string(52, '-') << "\n";
-
-    for (const auto& fileName : expectedFiles) {
-        fs::path fullPath = fs::path(outputDir) / fileName;
-        bool exists = fs::exists(fullPath);
-        uintmax_t fileSize = exists ? fs::file_size(fullPath) : 0;
-
-        std::cout << std::left << std::setw(26) << fileName
-                  << std::setw(12) << (exists && fileSize > 0 ? "OK" : "MISSING")
-                  << fileSize << "\n";
+    if (headlessMode) {
+        std::cout << "Running in headless mode (--headless). Skipping interactive event loop.\n";
+        mainWindow.close();
+        return 0;
     }
-    std::cout << "\n";
 
-    std::cout << "=== 2. CSV Content Verification ===\n";
-    previewCsvFile(outputDir + "/tokens.csv", 6);
-    previewCsvFile(outputDir + "/vocabulary.csv", 8);
-    previewCsvFile(outputDir + "/encoded_dataset.csv", 5);
-    previewCsvFile(outputDir + "/tfidf_matrix.csv", 5);
-    previewCsvFile(outputDir + "/corpus_statistics.csv", 15);
+    std::cout << "Launching interactive GUI window...\n";
+    std::cout << "(Modify text, select strategy, toggle checkboxes, then click 'Apply & Close')\n\n";
 
-    // Clean up generated test directory after verification
-    std::error_code ec;
-    fs::remove_all(outputDir, ec);
+    mainWindow.run();
+
+    // 3. Print final configuration captured from the interactive window
+    mainWindow.printConfigReport("3. Final User-Selected GUI Configuration");
 
     return 0;
 }
