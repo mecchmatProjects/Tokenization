@@ -1,35 +1,85 @@
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <filesystem>
+#include <iomanip>
 #include "../include/MockData.h"
+#include "../include/Dataset.h"
 #include "../include/Vocabulary.h"
 #include "../include/StatisticsAnalyzer.h"
+#include "../include/Exporter.h"
+
+namespace fs = std::filesystem;
+
+static void previewCsvFile(const std::string& filePath, size_t maxLines = 6) {
+    std::ifstream in(filePath);
+    if (!in.is_open()) {
+        std::cout << "  [Error] Could not open " << filePath << "\n";
+        return;
+    }
+
+    std::cout << "--- Preview: " << filePath << " ---\n";
+    std::string line;
+    size_t lineCount = 0;
+    while (lineCount < maxLines && std::getline(in, line)) {
+        std::cout << "  " << line << "\n";
+        ++lineCount;
+    }
+    std::cout << "\n";
+}
 
 int main() {
     Dataset dataset = MockData::createSampleDataset();
 
-    Vocabulary fullVocab;
-    fullVocab.buildFromDataset(dataset, 1, 0);
-    fullVocab.assignIdsToDataset(dataset);
+    Vocabulary vocab;
+    vocab.buildFromDataset(dataset, 1, 0);
+    dataset.vectorizeAll(vocab);
 
-    // 1. General corpus metrics
-    CorpusStatistics stats = StatisticsAnalyzer::analyze(dataset, fullVocab);
-    StatisticsAnalyzer::printReport(stats, "1. General Corpus Statistics");
+    const std::string outputDir = "export_output";
+    bool exported = Exporter::exportAllToDirectory(dataset, vocab, outputDir);
 
-    // 2. Full token frequency table sorted by descending frequency
-    auto fullFreqTable = StatisticsAnalyzer::getTokenFrequencyTable(dataset, &fullVocab);
-    StatisticsAnalyzer::printTokenFrequencyTable(
-        fullFreqTable, "2. Full Token Frequency Table (All 18 Unique Tokens)");
+    std::cout << "=== 1. Batch CSV Export Status ===\n";
+    std::cout << "Export to directory '" << outputDir << "/': "
+              << (exported ? "SUCCESS" : "FAILED") << "\n\n";
 
-    // 3. Top-5 most frequent tokens with filtered vocabulary (minFrequency = 2)
-    Vocabulary filteredVocab;
-    filteredVocab.buildFromDataset(dataset, 2, 0);
-    auto top5Table = StatisticsAnalyzer::getTokenFrequencyTable(dataset, &filteredVocab, 5);
-    StatisticsAnalyzer::printTokenFrequencyTable(
-        top5Table, "3. Top-5 Frequent Tokens (Filtered Vocab: minFrequency = 2)");
+    const std::vector<std::string> expectedFiles = {
+        "tokens.csv",
+        "vocabulary.csv",
+        "encoded_dataset.csv",
+        "bow_matrix.csv",
+        "tfidf_matrix.csv",
+        "corpus_statistics.csv",
+        "token_frequencies.csv",
+        "token_types.csv"
+    };
 
-    // 4. Token distribution by TokenType (WORD, NUMBER, PUNCTUATION, SPECIAL, etc.)
-    auto typeDistribution = StatisticsAnalyzer::getTokenTypeDistribution(dataset);
-    StatisticsAnalyzer::printTokenTypeDistribution(
-        typeDistribution, "4. Token Type Distribution");
+    std::cout << std::left << std::setw(26) << "CSV File Name"
+              << std::setw(12) << "Status"
+              << "Size (bytes)\n";
+    std::cout << std::string(52, '-') << "\n";
+
+    for (const auto& fileName : expectedFiles) {
+        fs::path fullPath = fs::path(outputDir) / fileName;
+        bool exists = fs::exists(fullPath);
+        uintmax_t fileSize = exists ? fs::file_size(fullPath) : 0;
+
+        std::cout << std::left << std::setw(26) << fileName
+                  << std::setw(12) << (exists && fileSize > 0 ? "OK" : "MISSING")
+                  << fileSize << "\n";
+    }
+    std::cout << "\n";
+
+    std::cout << "=== 2. CSV Content Verification ===\n";
+    previewCsvFile(outputDir + "/tokens.csv", 6);
+    previewCsvFile(outputDir + "/vocabulary.csv", 8);
+    previewCsvFile(outputDir + "/encoded_dataset.csv", 5);
+    previewCsvFile(outputDir + "/tfidf_matrix.csv", 5);
+    previewCsvFile(outputDir + "/corpus_statistics.csv", 15);
+
+    // Clean up generated test directory after verification
+    std::error_code ec;
+    fs::remove_all(outputDir, ec);
 
     return 0;
 }

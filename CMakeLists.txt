@@ -16,6 +16,7 @@ add_executable(tokenizer
     cpp/src/BagOfWordsEncoder.cpp
     cpp/src/TfIdfEncoder.cpp
     cpp/src/StatisticsAnalyzer.cpp
+    cpp/src/Exporter.cpp
 )
 
 target_include_directories(tokenizer PRIVATE cpp/include)
