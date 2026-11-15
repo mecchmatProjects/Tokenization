@@ -1,52 +1,65 @@
 #include <iostream>
 #include <string>
 #include "../include/MainWindow.h"
+#include "../include/MockData.h"
+#include "../include/Vocabulary.h"
+#include "../include/IntegerEncoder.h"
+#include "../include/StatisticsAnalyzer.h"
 
 int main(int argc, char* argv[]) {
-    bool headlessMode = false;
+    bool headless = false;
     for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "--headless" || arg == "--no-gui") {
-            headlessMode = true;
+        if (std::string(argv[i]) == "--headless") {
+            headless = true;
         }
     }
 
-    std::cout << "=== Tokenizer GUI Framework Verification ===\n\n";
+    GuiConfig testConfig;
+    testConfig.strategy = TokenizerStrategyType::Basic;
+    testConfig.lowercase = true;
+    testConfig.removePunctuation = false;
+    testConfig.minFrequency = 2;
+    testConfig.maxVocabularySize = 10;
+    testConfig.maxLength = 12;
 
-    MainWindow mainWindow("Text Tokenizer - NLP Preprocessing Studio", 760, 560);
-
-    if (!mainWindow.create()) {
-        std::cerr << "Failed to initialize native GUI window.\n";
+    MainWindow window(testConfig);
+    if (!window.create("NLP Text Tokenizer & Vectorizer Studio")) {
+        std::cerr << "Failed to initialize GUI window.\n";
         return 1;
     }
 
-    // 1. Verify initial default GUI state
-    mainWindow.printConfigReport("1. Initial Default GUI State");
+    Dataset sampleDataset = MockData::createSampleDataset();
+    Vocabulary vocab;
+    vocab.buildFromDataset(sampleDataset, testConfig.minFrequency, testConfig.maxVocabularySize);
+    vocab.assignIdsToDataset(sampleDataset);
 
-    // 2. Programmatically test switching strategy and toggling case/punctuation flags
-    mainWindow.setSelectedStrategy(TokenizerStrategyType::Basic);
-    mainWindow.setLowercaseEnabled(false);
-    mainWindow.setRemovePunctuationEnabled(true);
-    mainWindow.syncConfigFromControls();
-    mainWindow.printConfigReport("2. Programmatic Control Synchronization Check");
+    IntegerEncoder intEncoder(false, testConfig.maxLength);
+    intEncoder.encodeDataset(sampleDataset, vocab);
 
-    // Restore standard defaults before interactive session
-    GuiConfig defaultConfig;
-    mainWindow.setConfig(defaultConfig);
+    CorpusStatistics stats = StatisticsAnalyzer::analyze(sampleDataset, vocab);
+    size_t padCount = IntegerEncoder::countDatasetPaddingTokens(sampleDataset);
+    double padRatio = IntegerEncoder::calculateDatasetPaddingRatio(sampleDataset);
 
-    if (headlessMode) {
-        std::cout << "Running in headless mode (--headless). Skipping interactive event loop.\n";
-        mainWindow.close();
+    window.populateTokensTableFromDataset(sampleDataset, vocab);
+    window.populateStatisticsTable(stats, vocab.size(), testConfig.maxLength, padCount, padRatio);
+    window.syncConfigFromControls();
+
+    std::cout << "=== GUI Parameters & Result Tables Verification ===\n";
+    std::cout << window.buildSummaryString() << "\n";
+    std::cout << "Tokens table rows populated:     " << window.getTokensTableRowCount() << " (expected: 24)\n";
+    std::cout << "Statistics table rows populated: " << window.getStatisticsTableRowCount() << " (expected: 14)\n\n";
+
+    if (headless) {
+        window.destroy();
+        std::cout << "Headless verification completed successfully.\n";
         return 0;
     }
 
     std::cout << "Launching interactive GUI window...\n";
-    std::cout << "(Modify text, select strategy, toggle checkboxes, then click 'Apply & Close')\n\n";
+    int exitCode = window.runMessageLoop();
 
-    mainWindow.run();
+    std::cout << "\n=== Final GUI Session State ===\n";
+    std::cout << window.buildSummaryString() << "\n";
 
-    // 3. Print final configuration captured from the interactive window
-    mainWindow.printConfigReport("3. Final User-Selected GUI Configuration");
-
-    return 0;
+    return exitCode;
 }
