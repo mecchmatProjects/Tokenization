@@ -21,6 +21,11 @@ public:
     int getUnigueWords() const;
     double getLexicalDiversity() const;
 
+    // Setters (functions to write data)
+    void setTotalWords(int count);
+    void setUniqueWords(int count);
+    void setLexicalDiversity(double diversity);
+
     // May be add more setters/getters for sentense here later
 };
 
