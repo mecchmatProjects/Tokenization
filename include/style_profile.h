@@ -36,8 +36,6 @@ public:
 
     // Setters (functions to write data)
     void setTotalWords(int count);
-    void setUniqueWords(int count);
-    void setLexicalDiversity(double diversity);
     void setLexicalStats(int words, int unique, int lemmas, double diversity, double avgWordLen);
     void setSentenceStats(double avgLen, double stDev);
     void setRepetitionIndex(double index);

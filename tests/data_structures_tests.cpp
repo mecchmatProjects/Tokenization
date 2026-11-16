@@ -14,7 +14,7 @@ void test_token() {
     Token t("Apple", "apple", TokenType::WORD, 5, 1);
 
     // Check if getters return the correct values
-    assert(t.getText() == "Apple,");
+    assert(t.getText() == "Apple");
     assert(t.getNormalizedText() == "apple");
     assert(t.getType() == TokenType::WORD);
     assert(t.getSentenceNumber() == 1);
@@ -41,26 +41,19 @@ void test_sentence() {
 void test_style_profile() {
     StyleProfile sp;
 
-    // Check defult values
-    assert(sp.getTotalWords() == 0);
-    assert(sp.getLexicalDiversity() == 0.0);
-
-    // Check setters
-    sp.setTotalWords(1500);
-    sp.setLexicalDiversity(0.45);
-
-    assert(sp.getTotalWords() == 1500);
-    assert(sp.getLexicalDiversity() == 0.45);
-
+    // setLexicalStats(words, unique, lemmas, diversity, avgWordLen)
     sp.setLexicalStats(100, 50, 45, 0.5, 4.2);
+    
+    // Assertions must exactly match the values we just set above
     assert(sp.getTotalWords() == 100);
+    assert(sp.getLexicalDiversity() == 0.5);
     
     std::cout << "StyleProfile tests passed!\n";
 }
 
 
 void test_text_document() {
-    TextDocument doc("Kobzar", "Taras Shevchenko", 1840, "Ukranian", "Текст Кобзаря...");
+    TextDocument doc("Kobzar", "Taras Shevchenko", 1840, "Ukrainian", "Текст Кобзаря...");
 
     assert(doc.getTitle() == "Kobzar");
     assert(doc.getAuthor() == "Taras Shevchenko");

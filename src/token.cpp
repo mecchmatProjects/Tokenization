@@ -2,7 +2,7 @@
 
 // Constructor implementation: assigning incoming values to the private fields
 Token::Token(const std::string& tokenText, const std::string& normText, 
-             TokenType tokenType, int tokenPosition, int sentNumber) {    text = tokenText;
+             TokenType tokenType, int tokenPosition, int sentNumber) {
     text = tokenText;
     normalizedText = normText;
     type = tokenType;
