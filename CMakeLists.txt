@@ -18,6 +18,7 @@ add_executable(tokenizer
     cpp/src/StatisticsAnalyzer.cpp
     cpp/src/Exporter.cpp
     cpp/src/MainWindow.cpp
+    cpp/src/Word.cpp
 )
 
 target_include_directories(tokenizer PRIVATE cpp/include)
