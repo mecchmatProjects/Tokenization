@@ -1,0 +1,10 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+*.vsidx
+*.wsuo
+*.opendb
+/.vs/Tokenization/v18/Browse.VC.db
+/.vs/Tokenization/v18/Browse.VC.db-shm
+/.vs/Tokenization/v18/Browse.VC.db-wal
