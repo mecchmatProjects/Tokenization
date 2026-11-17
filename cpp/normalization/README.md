@@ -91,19 +91,3 @@ GUI містить вибір None/NFC/NFKC, незалежні заміни, п
 Складність — у середньому O(N + S), де N — обсяг текстів токенів, S — обсяг
 словника. Ключі словника готуються один раз за виклик `normalize()`.
 
-## Збирання й тести
-
-З кореня проєкту після налаштування CMake:
-
-```sh
-cmake --build build/preprocessing-nmake
-ctest --test-dir build/preprocessing-nmake --output-on-failure
-```
-
-Окремо модуль:
-
-```sh
-cmake -S cpp/normalization -B build/normalization
-cmake --build build/normalization --config Debug
-ctest --test-dir build/normalization -C Debug --output-on-failure
-```
