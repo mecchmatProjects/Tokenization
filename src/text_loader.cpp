@@ -62,6 +62,12 @@ std::vector<TextDocument> TextLoader::loadFromCatalog(const std::string& catalog
         std::getline(ss, yearStr, ';');
         std::getline(ss, language, ';');
 
+        // Skip malformed rows where essentuial fields are missing
+        if (relativePath.empty() || title.empty() || author.empty()) {
+            std::cerr << "Warning: Skipping malformed row in catalog\n";
+            continue;
+        }
+
         // Construct the full path by prepending "datasets/" directory
         std::string fullPath = "datasets/" + relativePath;
 
@@ -75,7 +81,12 @@ std::vector<TextDocument> TextLoader::loadFromCatalog(const std::string& catalog
 
         // Load the document using our single-file method and add it to the vector
         TextDocument doc = loadDocument(fullPath, title, author, year, language);
-        documents.push_back(doc);
+        // Only add non-empty documents to prevent breaking analyzers later
+        if (doc.getContent().length() > 0) {
+            documents.push_back(doc);
+        } else {
+            std::cerr << "Warning: Document " << title << " is empty or missing, skipping\n";
+        }
     }
 
     catalog.close();

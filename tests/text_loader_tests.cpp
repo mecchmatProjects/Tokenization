@@ -81,8 +81,8 @@ void test_catalog_malformed_year() {
     std::string tempPath = "datasets/temp_bad_catalog.csv";
     std::ofstream tempCsv(tempPath);
     if (tempCsv.is_open()) {
-        tempCsv << "authors/dummy.txt;Bad Year Title;Some Author;INVALID_YEAR;en\n";
-        tempCsv.close();
+    // Use an existing text file so the content length is > 0
+        tempCsv << "authors/freud_sexuality.txt;Bad Year Title;Some Author;INVALID_YEAR;en\n";        tempCsv.close();
     }
 
     std::vector<TextDocument> docs = TextLoader::loadFromCatalog(tempPath);
@@ -98,6 +98,25 @@ void test_catalog_malformed_year() {
     std::cout << "test_catalog_malformed_year passed!\n";
 }
 
+void test_catalog_missing_columns() {
+    // Edge case% CSV row is missing columns (a.g. year and language are absent)
+    std::string tempPath = "datasets_missing_cols.csv";
+    std::ofstream tempCsv(tempPath);
+    if (tempCsv.is_open()) {
+        tempCsv << "authors/dummy.txt;Incomplete Title;No Year Or Lang\n";
+        tempCsv.close();
+    }
+
+    std::vector<TextDocument> docs = TextLoader::loadFromCatalog(tempPath);
+
+    // The parser should skip the malformed row, so the vector must remain empty
+    assert(docs.size() == 0);
+
+    std::remove(tempPath.c_str());
+
+    std::cout << "test_catalog_missing_columns passed!\n";
+}
+
 
 
 int main() {
@@ -108,6 +127,7 @@ int main() {
     test_catalog_success();
     test_catalog_not_found();
     test_catalog_malformed_year();
+    test_catalog_missing_columns();
 
     std::cout << "All TextLoader tests passed successfully!\n";
     return 0;
