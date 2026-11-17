@@ -13,6 +13,7 @@ add_library(litcritic
     src/sentence.cpp
     src/style_profile.cpp
     src/text_document.cpp
+    src/text_loader.cpp
     src/token.cpp
 )
 
@@ -21,4 +22,9 @@ target_include_directories(litcritic PUBLIC include)
 add_executable(data_structures_tests tests/data_structures_tests.cpp)
 target_link_libraries(data_structures_tests PRIVATE litcritic)
 
-add_test(NAME data_structures_tests COMMAND data_structures_tests)
+add_test(NAME data_structures_tests COMMAND data_structures_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(text_loader_tests tests/text_loader_tests.cpp)
+target_link_libraries(text_loader_tests PRIVATE litcritic)
+
+add_test(NAME text_loader_tests COMMAND text_loader_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
