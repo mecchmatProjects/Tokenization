@@ -18,11 +18,14 @@ add_executable(tokenizer
     cpp/src/StatisticsAnalyzer.cpp
     cpp/src/Exporter.cpp
     cpp/src/MainWindow.cpp
+    feature/morphology-word
     cpp/src/Word.cpp
+    cpp/src/Application.cpp
+    develop_cpp
     tests/test_morphology.cpp
 )
 
-target_include_directories(tokenizer PRIVATE cpp/include)
+target_include_directories(tokenizer PRIVATE cpp cpp/include)
 target_link_libraries(tokenizer PRIVATE tokenization)
 
 if(WIN32)

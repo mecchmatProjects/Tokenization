@@ -1,65 +1,90 @@
 #include <iostream>
-#include <string>
-#include "../include/MainWindow.h"
-#include "../include/MockData.h"
-#include "../include/Vocabulary.h"
-#include "../include/IntegerEncoder.h"
-#include "../include/StatisticsAnalyzer.h"
+#include <iomanip>
+#include "../include/Application.h"
 
-int main(int argc, char* argv[]) {
-    bool headless = false;
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--headless") {
-            headless = true;
+int main() {
+    std::cout << "====================================================================\n";
+    std::cout << " SCENARIO 1: Integration with External TokenizerFactory (Role 1 PR) \n";
+    std::cout << "====================================================================\n";
+    {
+        PipelineConfig cfg;
+        cfg.tokenizerType = TokenizerType::WordPunctuation;
+        cfg.useExternalTokenizerFactory = true; // Calls TokenizerFactory::create()
+        cfg.convertToLowercase = true;
+        cfg.removePunctuation = false;
+        cfg.enableMorphologyNormalization = true;
+        cfg.maxLength = 6; // Pad sequence to length 6
+
+        Application app(cfg);
+        PipelineResult res = app.runOnText("Sample input text for factory integration", "factory_doc.txt");
+
+        app.printPipelineSummary(std::cout);
+        std::cout << "Padding tokens added: " << res.paddingTokensCount
+                  << " (" << std::fixed << std::setprecision(2) << (res.paddingRatio * 100.0) << "%)\n\n";
+    }
+
+    std::cout << "====================================================================\n";
+    std::cout << " SCENARIO 2: Full End-to-End Pipeline (Preprocess + Morph + Vectors)\n";
+    std::cout << "====================================================================\n";
+    {
+        PipelineConfig cfg;
+        cfg.tokenizerType = TokenizerType::RuleBased;
+        cfg.useExternalTokenizerFactory = false; // Built-in pipeline for real multi-doc corpus
+        cfg.convertToLowercase = true;
+        cfg.removePunctuation = false;
+        cfg.enableMorphologyNormalization = true;
+        cfg.minFrequency = 1;
+        cfg.maxLength = 8;
+
+        Application app(cfg);
+        std::vector<std::string> corpus = {
+            "Machine learning models are learning from data!",
+            "Natural language processing systems process text data.",
+            "Contact nlp@university.edu for #machinelearning in C++ 42."
+        };
+
+        PipelineResult res = app.runOnTexts(corpus);
+        app.printPipelineSummary(std::cout);
+
+        StatisticsAnalyzer::printTokenFrequencyTable(res.tokenFrequencies, "Top Token Frequencies");
+        std::cout << "\n";
+        StatisticsAnalyzer::printTokenTypeDistribution(res.typeDistribution, "Token Type Distribution");
+        std::cout << "\n";
+    }
+
+    std::cout << "====================================================================\n";
+    std::cout << " SCENARIO 3: Strategy Comparison via Application Controller         \n";
+    std::cout << "====================================================================\n";
+    {
+        const std::string sample = "Email user@test.com uses C++ & #NLP, price=100!";
+        const std::vector<TokenizerType> strategies = {
+            TokenizerType::Whitespace,
+            TokenizerType::WordPunctuation,
+            TokenizerType::RuleBased
+        };
+
+        for (TokenizerType strat : strategies) {
+            PipelineConfig cfg;
+            cfg.tokenizerType = strat;
+            cfg.useExternalTokenizerFactory = false;
+            cfg.convertToLowercase = true;
+            cfg.enableMorphologyNormalization = true;
+
+            Application app(cfg);
+            PipelineResult res = app.runOnText(sample, "strategy_test.txt");
+
+            std::cout << "Strategy [" << Application::tokenizerTypeToString(strat) << "]: "
+                      << "totalTokens=" << res.statistics.totalTokens
+                      << ", uniqueTokens=" << res.statistics.uniqueTokens
+                      << ", vocabSize=" << res.vocabularySize << "\n  Tokens: ";
+            const auto& tokens = app.getDataset().getDocuments().front().tokens;
+            for (size_t i = 0; i < tokens.size(); ++i) {
+                std::cout << "\"" << tokens[i].text << "\"(" << tokenTypeToString(tokens[i].type) << ")";
+                if (i + 1 < tokens.size()) std::cout << ", ";
+            }
+            std::cout << "\n\n";
         }
     }
 
-    GuiConfig testConfig;
-    testConfig.strategy = TokenizerStrategyType::Basic;
-    testConfig.lowercase = true;
-    testConfig.removePunctuation = false;
-    testConfig.minFrequency = 2;
-    testConfig.maxVocabularySize = 10;
-    testConfig.maxLength = 12;
-
-    MainWindow window(testConfig);
-    if (!window.create("NLP Text Tokenizer & Vectorizer Studio")) {
-        std::cerr << "Failed to initialize GUI window.\n";
-        return 1;
-    }
-
-    Dataset sampleDataset = MockData::createSampleDataset();
-    Vocabulary vocab;
-    vocab.buildFromDataset(sampleDataset, testConfig.minFrequency, testConfig.maxVocabularySize);
-    vocab.assignIdsToDataset(sampleDataset);
-
-    IntegerEncoder intEncoder(false, testConfig.maxLength);
-    intEncoder.encodeDataset(sampleDataset, vocab);
-
-    CorpusStatistics stats = StatisticsAnalyzer::analyze(sampleDataset, vocab);
-    size_t padCount = IntegerEncoder::countDatasetPaddingTokens(sampleDataset);
-    double padRatio = IntegerEncoder::calculateDatasetPaddingRatio(sampleDataset);
-
-    window.populateTokensTableFromDataset(sampleDataset, vocab);
-    window.populateStatisticsTable(stats, vocab.size(), testConfig.maxLength, padCount, padRatio);
-    window.syncConfigFromControls();
-
-    std::cout << "=== GUI Parameters & Result Tables Verification ===\n";
-    std::cout << window.buildSummaryString() << "\n";
-    std::cout << "Tokens table rows populated:     " << window.getTokensTableRowCount() << " (expected: 24)\n";
-    std::cout << "Statistics table rows populated: " << window.getStatisticsTableRowCount() << " (expected: 14)\n\n";
-
-    if (headless) {
-        window.destroy();
-        std::cout << "Headless verification completed successfully.\n";
-        return 0;
-    }
-
-    std::cout << "Launching interactive GUI window...\n";
-    int exitCode = window.runMessageLoop();
-
-    std::cout << "\n=== Final GUI Session State ===\n";
-    std::cout << window.buildSummaryString() << "\n";
-
-    return exitCode;
+    return 0;
 }
