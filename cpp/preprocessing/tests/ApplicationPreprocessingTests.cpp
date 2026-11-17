@@ -13,7 +13,7 @@ void require(bool condition, const char* message) {
 int main() {
     try {
         PipelineConfig config;
-        config.useExternalTokenizerFactory = false;
+
         config.enableMorphologyNormalization = false;
         Application application(config);
         require(application.preprocessText(u8"  ПРИВІТ\r\n WORLD  ") == u8"привіт world",
@@ -109,7 +109,7 @@ int main() {
         const auto& ruleTokens = window.getCurrentDataset().getDocuments()[0].tokens;
         require(ruleTokens.size() == 3 && ruleTokens[1].text == "https://example.com" &&
                     ruleTokens[2].text == "user@example.com",
-                "GUI RuleBased must use the real Application fallback, not the mock");
+                "GUI RuleBased must use the modular strategy through Application");
 
         gui.strategy = TokenizerStrategyType::Whitespace;
         gui.inputText = "Hello, world!";

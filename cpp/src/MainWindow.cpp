@@ -793,8 +793,6 @@ std::vector<Token> MainWindow::previewTokenizeText(const std::string& rawText) c
         case TokenizerStrategyType::Basic: pipeline.tokenizerType = TokenizerType::WordPunctuation; break;
         case TokenizerStrategyType::RuleBased: pipeline.tokenizerType = TokenizerType::RuleBased; break;
     }
-    // Use real modular strategies; RuleBased temporarily uses Application's fallback.
-    pipeline.useExternalTokenizerFactory = config.strategy != TokenizerStrategyType::RuleBased;
     PreprocessingConfig preprocessing;
     preprocessing.collapseHorizontalWhitespace = config.normalizeWhitespace;
     preprocessing.trimWhitespace = config.trimWhitespace;

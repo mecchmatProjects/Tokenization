@@ -20,7 +20,6 @@
 struct PipelineConfig {
     // Role 1: Tokenization & Preprocessing settings
     TokenizerType tokenizerType = TokenizerType::WordPunctuation;
-    bool useExternalTokenizerFactory = true; // true: use TokenizerFactory::create(), false: built-in tokenizer
     bool normalizeWhitespace = true;
     bool convertToLowercase = true;
     bool removePunctuation = false;
@@ -66,9 +65,6 @@ private:
     CorpusStatistics lastStatistics;
     MorphologyFunc customMorphologyNormalizer;
 
-    // Built-in fallback tokenization strategies for real text processing
-    std::vector<Token> tokenizeBuiltIn(const std::string& text, TokenizerType strategy) const;
-
     // Applies post-tokenization filters (case folding and punctuation removal)
     std::vector<Token> applyPostTokenFilters(const std::vector<Token>& rawTokens,
                                            bool normalizeCase = true) const;
@@ -90,7 +86,7 @@ public:
     // Stage 1: UTF-8 whitespace and case processing; punctuation is filtered after tokenization.
     std::string preprocessText(const std::string& rawText) const;
 
-    // Stage 2: Tokenization via Role 1 TokenizerFactory or built-in strategy
+    // Stage 2: Tokenization via Role 1 TokenizerFactory.
     std::vector<Token> tokenizeText(const std::string& text) const;
 
     // Stage 3: Morphological and lexical normalization of extracted tokens
