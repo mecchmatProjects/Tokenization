@@ -19,6 +19,7 @@ add_executable(tokenizer
     cpp/src/Exporter.cpp
     cpp/src/MainWindow.cpp
     cpp/src/Word.cpp
+    tests/test_morphology.cpp
 )
 
 target_include_directories(tokenizer PRIVATE cpp/include)
