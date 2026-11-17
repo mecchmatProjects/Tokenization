@@ -37,6 +37,17 @@ int main() {
               {{"don't", Type::Word}, {"mother-in-law", Type::Word}, {"COVID-19", Type::Word},
                {"abc123", Type::Word}, {"C++", Type::Special}, {"c++", Type::Special},
                {"#machine_learning", Type::Special}});
+        check("C# .NET c++/cli C++/CLI.",
+              {{"C#", Type::Special}, {".NET", Type::Special}, {"c++/cli", Type::Special},
+               {"C++/CLI", Type::Special}, {".", Type::Punctuation}});
+        check(".NETCore C++17 XC++ C#tag",
+              {{".", Type::Punctuation}, {"NETCore", Type::Word}, {"C", Type::Word},
+               {"+", Type::Special}, {"+17", Type::Number},
+               {"XC", Type::Word}, {"+", Type::Special}, {"+", Type::Special},
+               {"C", Type::Word}, {"#tag", Type::Special}});
+        check("(.net), C++!", {{"(", Type::Punctuation}, {".net", Type::Special},
+                               {")", Type::Punctuation}, {",", Type::Punctuation},
+                               {"C++", Type::Special}, {"!", Type::Punctuation}});
         check(u8"п'ять п’ять пʼять Привіт світе! 你好世界！",
               {{u8"п'ять", Type::Word}, {u8"п’ять", Type::Word}, {u8"пʼять", Type::Word},
                {u8"Привіт", Type::Word}, {u8"світе", Type::Word}, {"!", Type::Punctuation},

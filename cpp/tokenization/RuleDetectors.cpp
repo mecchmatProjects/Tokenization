@@ -1,4 +1,6 @@
 #include "RuleDetectors.h"
+#include "PredefinedWords.h"
+#include <utf8proc.h>
 #include "TokenizerUtils.h"
 
 
@@ -151,13 +153,30 @@ RuleMatch email(const RuleContext& context, std::size_t start) {
     return end > start ? RuleMatch{end - start, TokenType::Special} : RuleMatch{};
 }
 
-RuleMatch cppName(const RuleContext& context, std::size_t start) {
+RuleMatch predefinedWord(const RuleContext& context, std::size_t start) {
     const auto& chars = context.characters;
-    if ((chars[start].value == U'C' || chars[start].value == U'c') && start + 2 < chars.size() &&
-        chars[start + 1].value == U'+' && chars[start + 2].value == U'+') {
-        return {3, TokenType::Special};
+    if (start >= chars.size()) return {};
+    auto isWordBoundary = [](char32_t c) { return !wordPart(c) && c != U'_'; };
+    if (start > 0 && !isWordBoundary(chars[start - 1].value)) return {};
+
+    RuleMatch best;
+    for (const auto& entry : PredefinedWords::dictionary()) {
+        const auto length = entry.text.size();
+        if (length == 0 || length <= best.length || length > chars.size() - start) continue;
+        const auto end = start + length;
+        if (end < chars.size() && !isWordBoundary(chars[end].value)) continue;
+
+        bool matches = true;
+        for (std::size_t i = 0; i < length; ++i) {
+            if (utf8proc_tolower(static_cast<utf8proc_int32_t>(chars[start + i].value)) !=
+                utf8proc_tolower(static_cast<utf8proc_int32_t>(entry.text[i]))) {
+                matches = false;
+                break;
+            }
+        }
+        if (matches) best = {length, entry.type};
     }
-    return {};
+    return best;
 }
 
 RuleMatch hashtag(const RuleContext& context, std::size_t start) {

@@ -8,7 +8,7 @@ const std::vector<DetectionRule>& rules() {
     static const std::vector<DetectionRule> detectors = {
         RuleDetectors::url,
         RuleDetectors::email,
-        RuleDetectors::cppName,
+        RuleDetectors::predefinedWord,
         RuleDetectors::hashtag,
         RuleDetectors::number,
         RuleDetectors::compoundWord,
