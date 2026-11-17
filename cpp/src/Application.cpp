@@ -57,17 +57,12 @@ std::vector<Token> Application::applyPostTokenFilters(const std::vector<Token>& 
         ? config.preprocessingConfig->lowercase : config.convertToLowercase;
     const TextPreprocessor casePreprocessor(caseOptions);
 
-    size_t newPosition = 0;
     for (const auto& tok : rawTokens) {
-        if (config.removePunctuation && tok.type == TokenType::Punctuation) {
-            continue;
-        }
-
         Token updated = tok;
-        updated.position = newPosition++;
 
         if (normalizeCase && caseOptions.lowercase) {
             updated.text = casePreprocessor.process(updated.text);
+            if (updated.text != tok.text) updated.tokenId = -1;
         }
 
         filtered.push_back(std::move(updated));
@@ -102,13 +97,7 @@ std::vector<Token> Application::tokenizeText(const std::string& text) const {
         }
         extracted = std::move(grouped);
     }
-    extracted = applyPostTokenFilters(extracted, false);
-
-    if (config.enableMorphologyNormalization ||
-        config.replaceNumbersWithMarker ||
-        config.replaceUrlsAndEmailsWithMarker) {
-        normalizeTokens(extracted);
-    }
+    normalizeTokens(extracted);
 
     return extracted;
 }
@@ -143,31 +132,24 @@ std::string Application::defaultMorphologyStem(const std::string& word) {
 }
 
 void Application::normalizeTokens(std::vector<Token>& tokens) const {
-    for (auto& token : tokens) {
-        if (config.replaceNumbersWithMarker && token.type == TokenType::Number) {
-            token.text = "<NUM>";
-            continue;
-        }
-
-        if (config.replaceUrlsAndEmailsWithMarker && token.type == TokenType::Special) {
-            if (token.text.find('@') != std::string::npos) {
-                token.text = "<EMAIL>";
-                continue;
-            }
-            if (token.text.find("://") != std::string::npos || token.text.find("www.") == 0) {
-                token.text = "<URL>";
-                continue;
-            }
-        }
-
-        if (config.enableMorphologyNormalization && token.type == TokenType::Word) {
-            if (customMorphologyNormalizer) {
-                token.text = customMorphologyNormalizer(token.text);
-            } else {
-                token.text = defaultMorphologyStem(token.text);
-            }
+    NormalizationConfig options;
+    options.removePunctuation = config.removePunctuation;
+    options.replaceNumbers = config.replaceNumbersWithMarker;
+    options.replaceUrls = config.replaceUrlsAndEmailsWithMarker;
+    options.replaceEmails = config.replaceUrlsAndEmailsWithMarker;
+    if (config.normalizationConfig) options = *config.normalizationConfig;
+    auto normalized = Normalizer().normalize(tokens, options, config.stopWords);
+    // Morphology remains a separate operation after lexical normalization.
+    if (config.enableMorphologyNormalization) {
+        for (auto& token : normalized) {
+            if (token.type != TokenType::Word) continue;
+            const auto previous = token.text;
+            token.text = customMorphologyNormalizer
+                ? customMorphologyNormalizer(token.text) : defaultMorphologyStem(token.text);
+            if (token.text != previous) token.tokenId = -1;
         }
     }
+    tokens = std::move(normalized);
 }
 
 PipelineResult Application::executeVectorizationAndAnalytics() {
@@ -240,11 +222,7 @@ PipelineResult Application::runOnDataset(const Dataset& inputDataset) {
             doc.tokens = tokenizeText(doc.rawText);
         } else if (!doc.tokens.empty()) {
             doc.tokens = applyPostTokenFilters(doc.tokens);
-            if (config.enableMorphologyNormalization ||
-                config.replaceNumbersWithMarker ||
-                config.replaceUrlsAndEmailsWithMarker) {
-                normalizeTokens(doc.tokens);
-            }
+            normalizeTokens(doc.tokens);
         }
     }
 

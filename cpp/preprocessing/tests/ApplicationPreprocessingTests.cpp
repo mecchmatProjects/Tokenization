@@ -117,6 +117,41 @@ int main() {
         window.runTokenizationStep();
         require(window.getCurrentDataset().getDocuments()[0].tokens.size() == 2,
                 "GUI Whitespace must use the selected real strategy");
+
+        gui.strategy = TokenizerStrategyType::RuleBased;
+        gui.inputText = u8"The e\u0301 costs 12.50! https://example.com user@example.com";
+        gui.stopWordsText = "the costs";
+        gui.removePunctuation = true;
+        gui.normalization.unicode = UnicodeNormalization::NFC;
+        gui.normalization.removeStopWords = true;
+        gui.normalization.replaceNumbers = true;
+        gui.normalization.replaceUrls = true;
+        gui.normalization.replaceEmails = true;
+        window.setConfig(gui);
+        window.runTokenizationStep();
+        const auto& normalizedDocument = window.getCurrentDataset().getDocuments()[0];
+        require(normalizedDocument.rawText == gui.inputText && normalizedDocument.tokens.size() == 4 &&
+                    normalizedDocument.tokens[0].text == u8"é" && normalizedDocument.tokens[1].text == "<NUM>" &&
+                    normalizedDocument.tokens[2].text == "<URL>" && normalizedDocument.tokens[3].text == "<EMAIL>",
+                "GUI must forward all normalization options and preserve raw text");
+
+        gui.normalization = {};
+        gui.removePunctuation = false;
+        gui.inputText = "The price is 12.50!";
+        window.setConfig(gui);
+        window.runTokenizationStep();
+        require(window.getCurrentDataset().getDocuments()[0].tokens.size() == 5,
+                "Disabling normalization must restore unfiltered tokenization");
+
+        PipelineConfig normalizationPipeline;
+        normalizationPipeline.tokenizerType = TokenizerType::RuleBased;
+        NormalizationConfig normalizationOptions;
+        normalizationOptions.replaceEmails = true;
+        normalizationPipeline.normalizationConfig = normalizationOptions;
+        Application normalizedApplication(normalizationPipeline);
+        const auto emailOnly = normalizedApplication.tokenizeText("https://example.com user@example.com");
+        require(emailOnly[0].text == "https://example.com" && emailOnly[1].text == "<EMAIL>",
+                "Application must support independently configured URL/email replacements");
         std::cout << "Application preprocessing checks passed\n";
         return 0;
     } catch (const std::exception& error) {
