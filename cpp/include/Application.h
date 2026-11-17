@@ -3,6 +3,8 @@
 #include <vector>
 #include <functional>
 #include <iostream>
+#include <optional>
+#include "preprocessing/PreprocessingConfig.h"
 #include "Token.h"
 #include "Document.h"
 #include "Dataset.h"
@@ -22,9 +24,12 @@ struct PipelineConfig {
     bool normalizeWhitespace = true;
     bool convertToLowercase = true;
     bool removePunctuation = false;
+    // If set, overrides legacy whitespace/lowercase settings for preprocessing.
+    std::optional<PreprocessingConfig> preprocessingConfig;
+    bool preserveMultiCharPunctuation = false;
 
     // Role 2: Morphology & Word Normalization settings
-    bool enableMorphologyNormalization = true;
+    bool enableMorphologyNormalization = false;
     bool replaceNumbersWithMarker = false;
     bool replaceUrlsAndEmailsWithMarker = false;
 
@@ -65,7 +70,8 @@ private:
     std::vector<Token> tokenizeBuiltIn(const std::string& text, TokenizerType strategy) const;
 
     // Applies post-tokenization filters (case folding and punctuation removal)
-    std::vector<Token> applyPostTokenFilters(const std::vector<Token>& rawTokens) const;
+    std::vector<Token> applyPostTokenFilters(const std::vector<Token>& rawTokens,
+                                           bool normalizeCase = true) const;
 
     // Runs vocabulary building, all encoders, and statistical analysis on the current dataset
     PipelineResult executeVectorizationAndAnalytics();
@@ -81,7 +87,7 @@ public:
     // Hook for integrating external Morphology / Word processing module (Role 2)
     void setMorphologyNormalizer(MorphologyFunc normalizer);
 
-    // Stage 1: Text preprocessing (whitespace normalization, case folding, punctuation stripping)
+    // Stage 1: UTF-8 whitespace and case processing; punctuation is filtered after tokenization.
     std::string preprocessText(const std::string& rawText) const;
 
     // Stage 2: Tokenization via Role 1 TokenizerFactory or built-in strategy

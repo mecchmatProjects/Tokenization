@@ -7,6 +7,7 @@
 #include "Dataset.h"
 #include "Vocabulary.h"
 #include "StatisticsAnalyzer.h"
+#include "preprocessing/PreprocessingConfig.h"
 
 enum class TokenizerStrategyType {
     Whitespace = 0,
@@ -40,8 +41,10 @@ struct GuiConfig {
     bool lowercase = true;
     bool removePunctuation = false;
     bool normalizeWhitespace = true;
+    bool trimWhitespace = true;
+    NewlineMode newlineMode = NewlineMode::ReplaceWithSpace;
     bool preserveMultiCharPunctuation = true;
-    bool applyMorphology = true;
+    bool applyMorphology = false;
 
     int minFrequency = 1;
     size_t maxVocabularySize = 0;
@@ -80,10 +83,13 @@ public:
     static constexpr int IDC_BTN_STEP_ENCODE     = 121;
     static constexpr int IDC_BTN_RUN_PIPELINE    = 122;
     static constexpr int IDC_BTN_EXPORT_CSV      = 123;
+    static constexpr int IDC_CHK_TRIM_SPACE      = 124;
+    static constexpr int IDC_NEWLINE_COMBO       = 125;
 
 private:
     GuiConfig config;
     bool initialized = false;
+    bool syncingControls = false;
     PipelineStage currentStage = PipelineStage::Idle;
     std::string lastStatusMessage = "Ready. Click '1. Tokenize' for step-by-step mode or 'Run Full Pipeline'.";
 
@@ -105,6 +111,8 @@ private:
     void* hLowercaseCheck = nullptr;
     void* hRemovePunctCheck = nullptr;
     void* hNormalizeSpaceCheck = nullptr;
+    void* hTrimSpaceCheck = nullptr;
+    void* hNewlineCombo = nullptr;
     void* hPreserveMultiPunctCheck = nullptr;
     void* hMorphologyCheck = nullptr;
     void* hSummaryStatic = nullptr;
@@ -119,7 +127,6 @@ private:
     void createControls(void* parent);
     void initTableColumns();
     std::vector<Token> previewTokenizeText(const std::string& rawText) const;
-    static std::string stemWord(const std::string& word);
     void computeBowAndTfIdfVectors();
 
 public:

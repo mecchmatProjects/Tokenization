@@ -1,4 +1,5 @@
 #include "../include/Application.h"
+#include "preprocessing/TextPreprocessor.h"
 #include <cctype>
 #include <sstream>
 #include <iomanip>
@@ -31,46 +32,30 @@ std::string Application::tokenizerTypeToString(TokenizerType type) {
 }
 
 std::string Application::preprocessText(const std::string& rawText) const {
-    std::string processed;
-    processed.reserve(rawText.size());
-
-    bool prevSpace = false;
-    for (unsigned char ch : rawText) {
-        if (ch == '\r' || ch == '\n' || ch == '\t' || ch == ' ') {
-            if (config.normalizeWhitespace) {
-                if (!prevSpace && !processed.empty()) {
-                    processed.push_back(' ');
-                    prevSpace = true;
-                }
-            } else {
-                processed.push_back(static_cast<char>(ch));
-            }
-            continue;
-        }
-
-        prevSpace = false;
-        unsigned char outChar = ch;
-        if (config.convertToLowercase && outChar < 128) {
-            outChar = static_cast<unsigned char>(std::tolower(outChar));
-        }
-
-        if (config.removePunctuation && outChar < 128 && std::ispunct(outChar)) {
-            continue;
-        }
-
-        processed.push_back(static_cast<char>(outChar));
+    if (config.preprocessingConfig) {
+        return TextPreprocessor(*config.preprocessingConfig).process(rawText);
     }
-
-    if (config.normalizeWhitespace && !processed.empty() && processed.back() == ' ') {
-        processed.pop_back();
-    }
-
-    return processed;
+    PreprocessingConfig options;
+    options.collapseHorizontalWhitespace = config.normalizeWhitespace;
+    options.trimWhitespace = config.normalizeWhitespace;
+    options.lowercase = config.convertToLowercase;
+    options.newlineMode = config.normalizeWhitespace
+        ? NewlineMode::ReplaceWithSpace : NewlineMode::Preserve;
+    return TextPreprocessor(options).process(rawText);
 }
 
-std::vector<Token> Application::applyPostTokenFilters(const std::vector<Token>& rawTokens) const {
+std::vector<Token> Application::applyPostTokenFilters(const std::vector<Token>& rawTokens,
+                                                     bool normalizeCase) const {
     std::vector<Token> filtered;
     filtered.reserve(rawTokens.size());
+
+    PreprocessingConfig caseOptions;
+    caseOptions.collapseHorizontalWhitespace = false;
+    caseOptions.trimWhitespace = false;
+    caseOptions.newlineMode = NewlineMode::Preserve;
+    caseOptions.lowercase = config.preprocessingConfig
+        ? config.preprocessingConfig->lowercase : config.convertToLowercase;
+    const TextPreprocessor casePreprocessor(caseOptions);
 
     size_t newPosition = 0;
     for (const auto& tok : rawTokens) {
@@ -81,13 +66,8 @@ std::vector<Token> Application::applyPostTokenFilters(const std::vector<Token>& 
         Token updated = tok;
         updated.position = newPosition++;
 
-        if (config.convertToLowercase) {
-            for (char& c : updated.text) {
-                unsigned char uc = static_cast<unsigned char>(c);
-                if (uc < 128) {
-                    c = static_cast<char>(std::tolower(uc));
-                }
-            }
+        if (normalizeCase && caseOptions.lowercase) {
+            updated.text = casePreprocessor.process(updated.text);
         }
 
         filtered.push_back(std::move(updated));
@@ -245,11 +225,32 @@ std::vector<Token> Application::tokenizeText(const std::string& text) const {
     if (config.useExternalTokenizerFactory) {
         auto strategy = TokenizerFactory::create(config.tokenizerType);
         extracted = strategy->tokenize(preprocessed);
-        extracted = applyPostTokenFilters(extracted);
     } else {
         extracted = tokenizeBuiltIn(preprocessed, config.tokenizerType);
-        extracted = applyPostTokenFilters(extracted);
     }
+
+    if (config.preserveMultiCharPunctuation) {
+        std::vector<Token> grouped;
+        size_t cursor = 0;
+        size_t previousEnd = std::string::npos;
+        for (const auto& token : extracted) {
+            const size_t start = preprocessed.find(token.text, cursor);
+            const bool adjacent = start != std::string::npos && start == previousEnd;
+            if (adjacent && token.type == TokenType::Punctuation && !token.text.empty() &&
+                !grouped.empty() && grouped.back().type == TokenType::Punctuation &&
+                !grouped.back().text.empty() &&
+                (grouped.back().text.back() == token.text.front() ||
+                 (grouped.back().text.front() == '?' && token.text == "!"))) {
+                grouped.back().text += token.text;
+            } else {
+                grouped.push_back(token);
+            }
+            previousEnd = start == std::string::npos ? start : start + token.text.size();
+            if (start != std::string::npos) cursor = previousEnd;
+        }
+        extracted = std::move(grouped);
+    }
+    extracted = applyPostTokenFilters(extracted, false);
 
     if (config.enableMorphologyNormalization ||
         config.replaceNumbersWithMarker ||
