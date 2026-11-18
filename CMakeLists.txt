@@ -34,3 +34,8 @@ add_executable(preprocessor_tests tests/preprocessor_tests.cpp)
 target_link_libraries(preprocessor_tests PRIVATE litcritic)
 
 add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+
+
+add_executable(litcritic_app main.cpp)
+target_link_libraries(litcritic_app PRIVATE litcritic)
