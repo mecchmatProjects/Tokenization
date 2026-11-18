@@ -20,6 +20,7 @@ set(TOKENIZER_CORE_SOURCES
     cpp/src/TfIdfEncoder.cpp
     cpp/src/StatisticsAnalyzer.cpp
     cpp/src/Exporter.cpp
+    cpp/src/Word.cpp
     cpp/src/Application.cpp
 )
 
@@ -50,4 +51,21 @@ if(BUILD_TESTING)
         target_compile_options(application_preprocessing_tests PRIVATE /utf-8)
     endif()
     add_test(NAME application_preprocessing_tests COMMAND application_preprocessing_tests)
+
+    add_executable(unit_tests
+        cpp/tests/test_main.cpp
+        ${TOKENIZER_CORE_SOURCES}
+    )
+    target_include_directories(unit_tests PRIVATE cpp cpp/include cpp/tests)
+    target_link_libraries(unit_tests PRIVATE tokenization preprocessing normalization)
+
+    add_executable(morphology_tests tests/test_morphology.cpp cpp/src/Word.cpp)
+    target_include_directories(morphology_tests PRIVATE cpp/include)
+
+    if(MSVC)
+        target_compile_options(unit_tests PRIVATE /utf-8)
+        target_compile_options(morphology_tests PRIVATE /utf-8)
+    endif()
+    add_test(NAME PipelineUnitTests COMMAND unit_tests)
+    add_test(NAME morphology_tests COMMAND morphology_tests)
 endif()
