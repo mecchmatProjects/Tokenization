@@ -57,17 +57,12 @@ std::vector<Token> Application::applyPostTokenFilters(const std::vector<Token>& 
         ? config.preprocessingConfig->lowercase : config.convertToLowercase;
     const TextPreprocessor casePreprocessor(caseOptions);
 
-    size_t newPosition = 0;
     for (const auto& tok : rawTokens) {
-        if (config.removePunctuation && tok.type == TokenType::Punctuation) {
-            continue;
-        }
-
         Token updated = tok;
-        updated.position = newPosition++;
 
         if (normalizeCase && caseOptions.lowercase) {
             updated.text = casePreprocessor.process(updated.text);
+            if (updated.text != tok.text) updated.tokenId = -1;
         }
 
         filtered.push_back(std::move(updated));
@@ -76,158 +71,10 @@ std::vector<Token> Application::applyPostTokenFilters(const std::vector<Token>& 
     return filtered;
 }
 
-std::vector<Token> Application::tokenizeBuiltIn(const std::string& text, TokenizerType strategy) const {
-    std::vector<Token> tokens;
-    size_t pos = 0;
-    size_t sentenceNum = 1;
-    size_t n = text.size();
-
-    auto classifySingleToken = [](const std::string& s) -> TokenType {
-        if (s.empty()) return TokenType::Unknown;
-        bool allDigits = true;
-        bool allAlpha = true;
-        bool allPunct = true;
-        for (unsigned char c : s) {
-            if (!std::isdigit(c)) allDigits = false;
-            if (!std::isalpha(c) && c < 128) allAlpha = false;
-            if (!std::ispunct(c)) allPunct = false;
-        }
-        if (allDigits) return TokenType::Number;
-        if (allAlpha) return TokenType::Word;
-        if (allPunct && s.size() == 1 &&
-            (s[0] == '.' || s[0] == ',' || s[0] == '!' || s[0] == '?' ||
-             s[0] == ';' || s[0] == ':' || s[0] == '-' || s[0] == '(' || s[0] == ')')) {
-            return TokenType::Punctuation;
-        }
-        if (s.find('@') != std::string::npos || s.find('#') != std::string::npos ||
-            s.find('$') != std::string::npos || s.find("http") == 0 || s.find("C++") != std::string::npos) {
-            return TokenType::Special;
-        }
-        if (allPunct) return TokenType::Punctuation;
-        return TokenType::Word;
-    };
-
-    if (strategy == TokenizerType::Whitespace) {
-        size_t i = 0;
-        while (i < n) {
-            while (i < n && std::isspace(static_cast<unsigned char>(text[i]))) {
-                ++i;
-            }
-            if (i >= n) break;
-            size_t start = i;
-            while (i < n && !std::isspace(static_cast<unsigned char>(text[i]))) {
-                ++i;
-            }
-            std::string piece = text.substr(start, i - start);
-            TokenType type = classifySingleToken(piece);
-            tokens.emplace_back(piece, type, pos++, sentenceNum, -1);
-            if (!piece.empty() && (piece.back() == '.' || piece.back() == '!' || piece.back() == '?')) {
-                ++sentenceNum;
-            }
-        }
-        return tokens;
-    }
-
-    size_t i = 0;
-    while (i < n) {
-        unsigned char ch = static_cast<unsigned char>(text[i]);
-        if (std::isspace(ch)) {
-            ++i;
-            continue;
-        }
-
-        if (strategy == TokenizerType::RuleBased) {
-            size_t start = i;
-            if (text[i] == '#') {
-                ++i;
-                while (i < n && (std::isalnum(static_cast<unsigned char>(text[i])) || text[i] == '_')) {
-                    ++i;
-                }
-                if (i > start + 1) {
-                    tokens.emplace_back(text.substr(start, i - start), TokenType::Special, pos++, sentenceNum, -1);
-                    continue;
-                }
-                i = start;
-            }
-
-            size_t chunkEnd = i;
-            while (chunkEnd < n && !std::isspace(static_cast<unsigned char>(text[chunkEnd]))) {
-                ++chunkEnd;
-            }
-            while (chunkEnd > i && (text[chunkEnd - 1] == '.' || text[chunkEnd - 1] == ',' ||
-                                    text[chunkEnd - 1] == '!' || text[chunkEnd - 1] == '?')) {
-                --chunkEnd;
-            }
-            std::string candidate = text.substr(i, chunkEnd - i);
-            if (candidate.find('@') != std::string::npos ||
-                candidate.find("://") != std::string::npos ||
-                candidate == "c++" || candidate == "C++") {
-                tokens.emplace_back(candidate, TokenType::Special, pos++, sentenceNum, -1);
-                i = chunkEnd;
-                continue;
-            }
-        }
-
-        if (std::isalpha(ch) || ch >= 128) {
-            size_t start = i;
-            while (i < n) {
-                unsigned char c = static_cast<unsigned char>(text[i]);
-                if (std::isalpha(c) || c >= 128 ||
-                    (strategy == TokenizerType::RuleBased && (c == '\'' || c == '-') && i + 1 < n &&
-                     (std::isalpha(static_cast<unsigned char>(text[i + 1])) ||
-                      static_cast<unsigned char>(text[i + 1]) >= 128))) {
-                    ++i;
-                } else {
-                    break;
-                }
-            }
-            tokens.emplace_back(text.substr(start, i - start), TokenType::Word, pos++, sentenceNum, -1);
-            continue;
-        }
-
-        if (std::isdigit(ch)) {
-            size_t start = i;
-            while (i < n && std::isdigit(static_cast<unsigned char>(text[i]))) {
-                ++i;
-            }
-            if (strategy == TokenizerType::RuleBased && i + 1 < n &&
-                text[i] == '.' && std::isdigit(static_cast<unsigned char>(text[i + 1]))) {
-                ++i;
-                while (i < n && std::isdigit(static_cast<unsigned char>(text[i]))) {
-                    ++i;
-                }
-            }
-            tokens.emplace_back(text.substr(start, i - start), TokenType::Number, pos++, sentenceNum, -1);
-            continue;
-        }
-
-        std::string sym(1, text[i]);
-        bool isStandardPunct = (text[i] == '.' || text[i] == ',' || text[i] == '!' ||
-                                text[i] == '?' || text[i] == ';' || text[i] == ':' ||
-                                text[i] == '-' || text[i] == '(' || text[i] == ')' ||
-                                text[i] == '"' || text[i] == '\'');
-        TokenType symType = isStandardPunct ? TokenType::Punctuation : TokenType::Special;
-        tokens.emplace_back(sym, symType, pos++, sentenceNum, -1);
-
-        if (text[i] == '.' || text[i] == '!' || text[i] == '?') {
-            ++sentenceNum;
-        }
-        ++i;
-    }
-
-    return tokens;
-}
-
 std::vector<Token> Application::tokenizeText(const std::string& text) const {
     std::string preprocessed = preprocessText(text);
-    std::vector<Token> extracted;
-
-    if (config.useExternalTokenizerFactory) {
-        auto strategy = TokenizerFactory::create(config.tokenizerType);
-        extracted = strategy->tokenize(preprocessed);
-    } else {
-        extracted = tokenizeBuiltIn(preprocessed, config.tokenizerType);
-    }
+    auto strategy = TokenizerFactory::create(config.tokenizerType);
+    std::vector<Token> extracted = strategy->tokenize(preprocessed);
 
     if (config.preserveMultiCharPunctuation) {
         std::vector<Token> grouped;
@@ -250,13 +97,7 @@ std::vector<Token> Application::tokenizeText(const std::string& text) const {
         }
         extracted = std::move(grouped);
     }
-    extracted = applyPostTokenFilters(extracted, false);
-
-    if (config.enableMorphologyNormalization ||
-        config.replaceNumbersWithMarker ||
-        config.replaceUrlsAndEmailsWithMarker) {
-        normalizeTokens(extracted);
-    }
+    normalizeTokens(extracted);
 
     return extracted;
 }
@@ -291,31 +132,24 @@ std::string Application::defaultMorphologyStem(const std::string& word) {
 }
 
 void Application::normalizeTokens(std::vector<Token>& tokens) const {
-    for (auto& token : tokens) {
-        if (config.replaceNumbersWithMarker && token.type == TokenType::Number) {
-            token.text = "<NUM>";
-            continue;
-        }
-
-        if (config.replaceUrlsAndEmailsWithMarker && token.type == TokenType::Special) {
-            if (token.text.find('@') != std::string::npos) {
-                token.text = "<EMAIL>";
-                continue;
-            }
-            if (token.text.find("://") != std::string::npos || token.text.find("www.") == 0) {
-                token.text = "<URL>";
-                continue;
-            }
-        }
-
-        if (config.enableMorphologyNormalization && token.type == TokenType::Word) {
-            if (customMorphologyNormalizer) {
-                token.text = customMorphologyNormalizer(token.text);
-            } else {
-                token.text = defaultMorphologyStem(token.text);
-            }
+    NormalizationConfig options;
+    options.removePunctuation = config.removePunctuation;
+    options.replaceNumbers = config.replaceNumbersWithMarker;
+    options.replaceUrls = config.replaceUrlsAndEmailsWithMarker;
+    options.replaceEmails = config.replaceUrlsAndEmailsWithMarker;
+    if (config.normalizationConfig) options = *config.normalizationConfig;
+    auto normalized = Normalizer().normalize(tokens, options, config.stopWords);
+    // Morphology remains a separate operation after lexical normalization.
+    if (config.enableMorphologyNormalization) {
+        for (auto& token : normalized) {
+            if (token.type != TokenType::Word) continue;
+            const auto previous = token.text;
+            token.text = customMorphologyNormalizer
+                ? customMorphologyNormalizer(token.text) : defaultMorphologyStem(token.text);
+            if (token.text != previous) token.tokenId = -1;
         }
     }
+    tokens = std::move(normalized);
 }
 
 PipelineResult Application::executeVectorizationAndAnalytics() {
@@ -388,11 +222,7 @@ PipelineResult Application::runOnDataset(const Dataset& inputDataset) {
             doc.tokens = tokenizeText(doc.rawText);
         } else if (!doc.tokens.empty()) {
             doc.tokens = applyPostTokenFilters(doc.tokens);
-            if (config.enableMorphologyNormalization ||
-                config.replaceNumbersWithMarker ||
-                config.replaceUrlsAndEmailsWithMarker) {
-                normalizeTokens(doc.tokens);
-            }
+            normalizeTokens(doc.tokens);
         }
     }
 
@@ -432,7 +262,7 @@ const CorpusStatistics& Application::getStatistics() const {
 void Application::printPipelineSummary(std::ostream& os) const {
     os << "=== Pipeline Execution Summary ===\n";
     os << "Tokenizer strategy:         " << tokenizerTypeToString(config.tokenizerType)
-       << (config.useExternalTokenizerFactory ? " (TokenizerFactory)" : " (Built-in Pipeline)") << "\n";
+       << " (TokenizerFactory)\n";
     os << "Lowercase / Strip punct:    " << (config.convertToLowercase ? "ON" : "OFF")
        << " / " << (config.removePunctuation ? "ON" : "OFF") << "\n";
     os << "Morphology normalization:   " << (config.enableMorphologyNormalization ? "ON" : "OFF") << "\n";

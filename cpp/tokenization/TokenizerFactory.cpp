@@ -1,5 +1,5 @@
 #include "TokenizerFactory.h"
-#include "MockTokenizer.h"
+#include "RuleBasedTokenizer.h"
 #include "WhitespaceTokenizer.h"
 #include "WordPunctuationTokenizer.h"
 #include <stdexcept>
@@ -15,8 +15,7 @@ unique_ptr<TokenizerStrategy> TokenizerFactory::create(TokenizerType type) {
         case TokenizerType::WordPunctuation:
             return make_unique<WordPunctuationTokenizer>();
         case TokenizerType::RuleBased:
-            // RuleBased still needs a standalone implementation.
-            return make_unique<MockTokenizer>();
+            return make_unique<RuleBasedTokenizer>();
         default:
             throw invalid_argument("Unknown tokenizer type");
     }
