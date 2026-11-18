@@ -1,10 +1,15 @@
 #include <iostream>
+#include <clocale> // Add for aetlocale
 #include <vector>
 #include "text_loader.h"
 #include "preprocessor.h"
 #include "text_document.h"
 
 int main() {
+    // Set global locale to Ukrainian UTF-8 to enable correct character classification
+    std::setlocale(LC_ALL, "uk_UA.UTF-8");
+
+
     std::cout << "Start LitCritic...\n";
 
     // Load all documents listed in the CSV catalog

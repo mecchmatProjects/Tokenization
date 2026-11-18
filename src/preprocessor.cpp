@@ -2,6 +2,25 @@
 #include <cctype>
 #include <algorithm>
 
+#include <locale>
+#include <codecvt>
+#include <cwctype>
+
+
+
+// Helper function to convert standerd UTF-8 to wide string
+std::wstring utf8_to_wstring(const std::string& str) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.from_bytes(str);
+}
+
+
+// Helper function to convert wide string back to standard UTF-8 string
+std::string wstring_to_utf8(const std::wstring& wstr) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.to_bytes(wstr);
+}
+
 
 
 // Applies all preprocessing steps in the correct logical order
@@ -35,7 +54,11 @@ std::string Preprocessor::removeControlCharacters(const std::string& text) {
     result.reserve(text.size());
 
     for (char c : text) {
-        if (!std::iscntrl(static_cast<unsigned char>(c)) || c == '\n' || c == '\t' || c == '\r') {
+        unsigned char uc = static_cast<unsigned char>(c);
+        // Keep printable ASCII characters (>= 32, except 127 DEL)
+        // and all bytes > 127 (required for UTF-8 multibyte sequences).
+        // Also explicitly allow standard formatting characters: \n, \t, \r
+        if ((uc >= 32 && uc != 127) || c == '\n' || c == '\t' || c == '\r') {
             result += c;
         }
     }
@@ -43,7 +66,7 @@ std::string Preprocessor::removeControlCharacters(const std::string& text) {
 }
 
 
-// Replaces different line break formats (\r\n or \r) with standart \n
+// Replaces different line break formats (\r\n or \r) with standard \n
 std::string Preprocessor::normalizeLineBreaks(const std::string& text) {
     std::string result;
     result.reserve(text.size());
@@ -88,7 +111,7 @@ std::string Preprocessor::normalizeSpaces(const std::string& text) {
 std::string Preprocessor::normalizeQuotesAndDashes(const std::string& text) {
     std::string result = text;
 
-    // A simple find-and-replace lambda helper tp keep code DRY (Don`t Repeat Yourself)
+    // A simple find-and-replace lambda helper to keep code DRY (Don`t Repeat Yourself)
     auto replaceAll = [](std::string& str, const std::string& from, const std::string& to) {
         size_t start_pos = 0;
         while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
@@ -97,7 +120,7 @@ std::string Preprocessor::normalizeQuotesAndDashes(const std::string& text) {
         }
     };
 
-    // Nor,alize dashes
+    // Normalize dashes
     replaceAll(result, "—", "-");
     replaceAll(result, "–", "-");
 
@@ -115,24 +138,31 @@ std::string Preprocessor::normalizeQuotesAndDashes(const std::string& text) {
 // Note: Ukrainian UTF-8 lowercase conversion usually requires external libraries like ICU,
 // so this handles basic standard characters safely
 std::string Preprocessor::convertToLowerCase(const std::string& text) {
-    std::string result = text;
-    for (char& c : result) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    // Convert to wide string for safe multibyte character handling
+    std::wstring wtext = utf8_to_wstring(text);
+    
+    for (wchar_t& wc : wtext) {
+        // Apply wide-character lowercase conversion
+        wc = std::towlower(wc);
     }
-    return result;
+    
+    // Convert back to UTF-8
+    return wstring_to_utf8(wtext);
 }
 
 
 // Removes all punctuation characters, keeping only letters, numbers, and spaces
 std::string Preprocessor::stripPunctuation(const std::string& text) {
-    std::string result;
-    result.reserve(text.size());
+    std::wstring wtext = utf8_to_wstring(text);
+    std::wstring result;
+    result.reserve(wtext.size());
 
-    for (char c : text) {
-        // We do not strip spaces, only actual punctuation
-        if (!std::ispunct(static_cast<unsigned char>(c))) {
-            result += c;
+    for (wchar_t wc : wtext) {
+        // Keep the character if it is NOT a punctuation mark
+        if (!std::iswpunct(wc)) {
+            result += wc;
         }
     }
-    return result;
+    
+    return wstring_to_utf8(result);
 }

@@ -6,7 +6,7 @@ class Preprocessor {
 public:
     // Main function that applies all preprocessing steps in sequence
     // It takes the raw text and returns a cleaned^ normalized copy
-    static std::string process(const std::string& rawText, bool removePunctuation = false, bool toLowerCasw = false);
+    static std::string process(const std::string& rawText, bool removePunctuation = false, bool toLowerCase = false);
 
 private:
     // Single-responsibility helper functions for isolated text transformations
