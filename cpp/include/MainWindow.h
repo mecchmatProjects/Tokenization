@@ -7,6 +7,8 @@
 #include "Dataset.h"
 #include "Vocabulary.h"
 #include "StatisticsAnalyzer.h"
+#include "preprocessing/PreprocessingConfig.h"
+#include "normalization/NormalizationConfig.h"
 
 enum class TokenizerStrategyType {
     Whitespace = 0,
@@ -40,8 +42,12 @@ struct GuiConfig {
     bool lowercase = true;
     bool removePunctuation = false;
     bool normalizeWhitespace = true;
+    bool trimWhitespace = true;
+    NewlineMode newlineMode = NewlineMode::ReplaceWithSpace;
     bool preserveMultiCharPunctuation = true;
-    bool applyMorphology = true;
+    bool applyMorphology = false;
+    NormalizationConfig normalization;
+    std::string stopWordsText = "the a an is of to and";
 
     int minFrequency = 1;
     size_t maxVocabularySize = 0;
@@ -80,10 +86,20 @@ public:
     static constexpr int IDC_BTN_STEP_ENCODE     = 121;
     static constexpr int IDC_BTN_RUN_PIPELINE    = 122;
     static constexpr int IDC_BTN_EXPORT_CSV      = 123;
+    static constexpr int IDC_CHK_TRIM_SPACE      = 124;
+    static constexpr int IDC_NEWLINE_COMBO       = 125;
+    static constexpr int IDC_UNICODE_COMBO       = 126;
+    static constexpr int IDC_CHK_REPLACE_NUM      = 127;
+    static constexpr int IDC_CHK_REPLACE_URL      = 128;
+    static constexpr int IDC_CHK_REPLACE_EMAIL    = 129;
+    static constexpr int IDC_CHK_STOP_WORDS       = 130;
+    static constexpr int IDC_CHK_STOP_CASE        = 131;
+    static constexpr int IDC_STOP_WORDS_EDIT      = 132;
 
 private:
     GuiConfig config;
     bool initialized = false;
+    bool syncingControls = false;
     PipelineStage currentStage = PipelineStage::Idle;
     std::string lastStatusMessage = "Ready. Click '1. Tokenize' for step-by-step mode or 'Run Full Pipeline'.";
 
@@ -105,8 +121,17 @@ private:
     void* hLowercaseCheck = nullptr;
     void* hRemovePunctCheck = nullptr;
     void* hNormalizeSpaceCheck = nullptr;
+    void* hTrimSpaceCheck = nullptr;
+    void* hNewlineCombo = nullptr;
     void* hPreserveMultiPunctCheck = nullptr;
     void* hMorphologyCheck = nullptr;
+    void* hUnicodeCombo = nullptr;
+    void* hReplaceNumberCheck = nullptr;
+    void* hReplaceUrlCheck = nullptr;
+    void* hReplaceEmailCheck = nullptr;
+    void* hStopWordsCheck = nullptr;
+    void* hStopCaseCheck = nullptr;
+    void* hStopWordsEdit = nullptr;
     void* hSummaryStatic = nullptr;
 
     void* hMinFreqEdit = nullptr;
@@ -119,7 +144,6 @@ private:
     void createControls(void* parent);
     void initTableColumns();
     std::vector<Token> previewTokenizeText(const std::string& rawText) const;
-    static std::string stemWord(const std::string& word);
     void computeBowAndTfIdfVectors();
 
 public:
@@ -128,11 +152,11 @@ public:
 
     bool create(const std::string& title = "NLP Text Tokenizer & Vectorizer Studio",
                 int width = 1080,
-                int height = 820);
+                int height = 944);
     int runMessageLoop();
     int showAndRun(const std::string& title = "NLP Text Tokenizer & Vectorizer Studio",
                    int width = 1080,
-                   int height = 820);
+                   int height = 944);
 
     // Synchronization between UI controls and GuiConfig
     void syncControlsFromConfig();

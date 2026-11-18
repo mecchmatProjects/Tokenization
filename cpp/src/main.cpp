@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     initialConfig.strategy = TokenizerStrategyType::RuleBased;
     initialConfig.lowercase = true;
     initialConfig.removePunctuation = false;
-    initialConfig.applyMorphology = true;
+    initialConfig.applyMorphology = false;
     initialConfig.minFrequency = 1;
     initialConfig.maxVocabularySize = 0;
     initialConfig.maxLength = 10;

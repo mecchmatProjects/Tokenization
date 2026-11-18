@@ -5,9 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(CTest)
+include(cmake/Dependencies.cmake)
 add_subdirectory(cpp/tokenization)
+add_subdirectory(cpp/preprocessing)
+add_subdirectory(cpp/normalization)
 
-set(CORE_SOURCES
+set(TOKENIZER_CORE_SOURCES
     cpp/src/Dataset.cpp
     cpp/src/Vocabulary.cpp
     cpp/src/IntegerEncoder.cpp
@@ -16,22 +20,13 @@ set(CORE_SOURCES
     cpp/src/TfIdfEncoder.cpp
     cpp/src/StatisticsAnalyzer.cpp
     cpp/src/Exporter.cpp
-    cpp/src/MainWindow.cpp
-    feature/morphology-word
     cpp/src/Word.cpp
     cpp/src/Application.cpp
-    develop_cpp
-    tests/test_morphology.cpp
 )
 
-add_executable(tokenizer
-    cpp/src/main.cpp
-    cpp/src/MainWindow.cpp
-    ${CORE_SOURCES}
-)
-
+add_executable(tokenizer cpp/src/main.cpp cpp/src/MainWindow.cpp ${TOKENIZER_CORE_SOURCES})
 target_include_directories(tokenizer PRIVATE cpp cpp/include)
-target_link_libraries(tokenizer PRIVATE tokenization)
+target_link_libraries(tokenizer PRIVATE tokenization preprocessing normalization)
 
 if(WIN32)
     target_link_libraries(tokenizer PRIVATE user32 gdi32 comctl32)
@@ -41,18 +36,36 @@ if(MSVC)
     target_compile_options(tokenizer PRIVATE /utf-8)
 endif()
 
-# Unit test suite target
-add_executable(unit_tests
-    cpp/tests/test_main.cpp
-    ${CORE_SOURCES}
-)
+if(BUILD_TESTING)
+    add_executable(application_preprocessing_tests
+        cpp/preprocessing/tests/ApplicationPreprocessingTests.cpp
+        cpp/src/MainWindow.cpp
+        ${TOKENIZER_CORE_SOURCES}
+    )
+    target_include_directories(application_preprocessing_tests PRIVATE cpp cpp/include)
+    target_link_libraries(application_preprocessing_tests PRIVATE tokenization preprocessing normalization)
+    if(WIN32)
+        target_link_libraries(application_preprocessing_tests PRIVATE user32 gdi32 comctl32)
+    endif()
+    if(MSVC)
+        target_compile_options(application_preprocessing_tests PRIVATE /utf-8)
+    endif()
+    add_test(NAME application_preprocessing_tests COMMAND application_preprocessing_tests)
 
-target_include_directories(unit_tests PRIVATE cpp cpp/include cpp/tests)
-target_link_libraries(unit_tests PRIVATE tokenization)
+    add_executable(unit_tests
+        cpp/tests/test_main.cpp
+        ${TOKENIZER_CORE_SOURCES}
+    )
+    target_include_directories(unit_tests PRIVATE cpp cpp/include cpp/tests)
+    target_link_libraries(unit_tests PRIVATE tokenization preprocessing normalization)
 
-if(MSVC)
-    target_compile_options(unit_tests PRIVATE /utf-8)
+    add_executable(morphology_tests tests/test_morphology.cpp cpp/src/Word.cpp)
+    target_include_directories(morphology_tests PRIVATE cpp/include)
+
+    if(MSVC)
+        target_compile_options(unit_tests PRIVATE /utf-8)
+        target_compile_options(morphology_tests PRIVATE /utf-8)
+    endif()
+    add_test(NAME PipelineUnitTests COMMAND unit_tests)
+    add_test(NAME morphology_tests COMMAND morphology_tests)
 endif()
-
-enable_testing()
-add_test(NAME PipelineUnitTests COMMAND unit_tests)

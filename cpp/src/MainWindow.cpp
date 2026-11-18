@@ -1,5 +1,7 @@
 #include "../include/MainWindow.h"
 #include "../include/IntegerEncoder.h"
+#include "../include/Application.h"
+#include "preprocessing/TextPreprocessor.h"
 
 #include <sstream>
 #include <iomanip>
@@ -10,6 +12,7 @@
 #include <filesystem>
 #include <unordered_set>
 #include <unordered_map>
+#include <stdexcept>
 
 #ifdef _WIN32
 #define TokenType Win32TokenType_ConflictFix
@@ -24,6 +27,17 @@
 #undef TokenType
 
 namespace {
+    std::wstring utf8ToWide(const std::string& text) {
+        if (text.empty()) return {};
+        const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                               text.data(), static_cast<int>(text.size()), nullptr, 0);
+        if (!length) throw std::runtime_error("Invalid UTF-8 for GUI text");
+        std::wstring result(length, L'\0');
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                            static_cast<int>(text.size()), result.data(), length);
+        return result;
+    }
+
     void insertListViewColumn(HWND hList, int colIndex, const char* title, int width) {
         LVCOLUMNA col = {};
         col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
@@ -34,29 +48,37 @@ namespace {
     }
 
     int insertListViewRow(HWND hList, int rowIndex, const std::string& firstColText) {
-        LVITEMA item = {};
+        const auto wide = utf8ToWide(firstColText);
+        LVITEMW item = {};
         item.mask = LVIF_TEXT;
         item.iItem = rowIndex;
         item.iSubItem = 0;
-        item.pszText = const_cast<char*>(firstColText.c_str());
-        return static_cast<int>(SendMessageA(hList, LVM_INSERTITEMA, 0, reinterpret_cast<LPARAM>(&item)));
+        item.pszText = const_cast<wchar_t*>(wide.c_str());
+        return static_cast<int>(SendMessageW(hList, LVM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&item)));
     }
 
     void setListViewCellText(HWND hList, int rowIndex, int colIndex, const std::string& text) {
-        LVITEMA item = {};
+        const auto wide = utf8ToWide(text);
+        LVITEMW item = {};
         item.iSubItem = colIndex;
-        item.pszText = const_cast<char*>(text.c_str());
-        SendMessageA(hList, LVM_SETITEMTEXTA, static_cast<WPARAM>(rowIndex), reinterpret_cast<LPARAM>(&item));
+        item.pszText = const_cast<wchar_t*>(wide.c_str());
+        SendMessageW(hList, LVM_SETITEMTEXTW, static_cast<WPARAM>(rowIndex), reinterpret_cast<LPARAM>(&item));
     }
 
     std::string getEditControlText(HWND hEdit) {
         if (!hEdit) return "";
-        int len = GetWindowTextLengthA(hEdit);
+        int len = GetWindowTextLengthW(hEdit);
         if (len <= 0) return "";
-        std::string buffer(static_cast<size_t>(len) + 1, '\0');
-        GetWindowTextA(hEdit, &buffer[0], len + 1);
+        std::wstring buffer(static_cast<size_t>(len) + 1, L'\0');
+        GetWindowTextW(hEdit, &buffer[0], len + 1);
         buffer.resize(static_cast<size_t>(len));
-        return buffer;
+        const int bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, buffer.data(),
+                                              len, nullptr, 0, nullptr, nullptr);
+        if (!bytes) throw std::runtime_error("Invalid Unicode in input");
+        std::string result(bytes, '\0');
+        WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, buffer.data(), len,
+                            result.data(), bytes, nullptr, nullptr);
+        return result;
     }
 
     int parsePositiveIntOrDefault(const std::string& text, int defaultVal, int minVal) {
@@ -94,10 +116,15 @@ namespace {
         }
 
         if (self) {
+            try {
             return static_cast<LRESULT>(self->handleMessage(
                 static_cast<unsigned int>(uMsg),
                 static_cast<unsigned long long>(wParam),
                 static_cast<long long>(lParam)));
+            } catch (const std::exception& error) {
+                MessageBoxA(hwnd, error.what(), "Processing error", MB_OK | MB_ICONERROR);
+                return 0;
+            }
         }
 
         return DefWindowProcA(hwnd, uMsg, wParam, lParam);
@@ -213,9 +240,9 @@ int MainWindow::runMessageLoop() {
     UpdateWindow(nativeWnd);
 
     MSG msg = {};
-    while (GetMessageA(&msg, nullptr, 0, 0) > 0) {
+    while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
         TranslateMessage(&msg);
-        DispatchMessageA(&msg);
+        DispatchMessageW(&msg);
     }
     return static_cast<int>(msg.wParam);
 #else
@@ -275,14 +302,14 @@ void MainWindow::createControls(void* parentPtr) {
 
     // --- Section 1: Input Text Document (Top-Left) ---
     HWND hGroupInput = CreateWindowExA(
-        0, "BUTTON", "1. Input Text Documents (One Document per Line)",
+        0, "BUTTON", "Input Text (One Document)",
         WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
         16, 10, 535, 212, parent, nullptr, inst, nullptr
     );
     applyFont(hGroupInput, true);
 
-    HWND inputEdit = CreateWindowExA(
-        WS_EX_CLIENTEDGE, "EDIT", "",
+    HWND inputEdit = CreateWindowExW(
+        WS_EX_CLIENTEDGE, L"EDIT", L"",
         WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN,
         28, 34, 510, 138,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_INPUT_EDIT)), inst, nullptr
@@ -306,98 +333,99 @@ void MainWindow::createControls(void* parentPtr) {
     );
     applyFont(hBtnClear);
 
-    // --- Section 2: Tokenization Strategy & Preprocessing Options (Top-Right) ---
-    HWND hGroupOptions = CreateWindowExA(
-        0, "BUTTON", "2. Strategy, Case && Morphology Settings",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        564, 10, 484, 212, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupOptions, true);
+    // Settings follow the pipeline: preprocessing -> tokenization -> normalization -> morphology.
+    auto createGroup = [&](const char* title, int x, int y, int width, int height) {
+        HWND group = CreateWindowExA(0, "BUTTON", title,
+            WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+            x, y, width, height, parent, nullptr, inst, nullptr);
+        applyFont(group, true);
+    };
+    auto createCheck = [&](const char* title, int id, int x, int y, int width) -> HWND {
+        HWND check = CreateWindowExA(0, "BUTTON", title,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
+            x, y, width, 22, parent,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), inst, nullptr);
+        applyFont(check);
+        return check;
+    };
 
-    HWND hLblStrategy = CreateWindowExA(
-        0, "STATIC", "Tokenization Strategy (How text is split):",
-        WS_CHILD | WS_VISIBLE,
-        580, 34, 300, 20, parent, nullptr, inst, nullptr
-    );
-    applyFont(hLblStrategy);
+    createGroup("1. Text Preprocessing", 564, 10, 484, 116);
+    hLowercaseCheck = createCheck("Unicode lowercase", IDC_CHK_LOWERCASE, 580, 34, 210);
+    hTrimSpaceCheck = createCheck("Trim text edges", IDC_CHK_TRIM_SPACE, 800, 34, 230);
+    hNormalizeSpaceCheck = createCheck("Collapse extra spaces and tabs", IDC_CHK_NORM_SPACE, 580, 58, 440);
 
+    HWND newlineCombo = CreateWindowExA(
+        0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
+        580, 86, 452, 140, parent,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_NEWLINE_COMBO)), inst, nullptr);
+    applyFont(newlineCombo);
+    hNewlineCombo = newlineCombo;
+    SendMessageA(newlineCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Newlines: preserve"));
+    SendMessageA(newlineCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Newlines: normalize to LF"));
+    SendMessageA(newlineCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Newlines: replace with spaces"));
+
+    createGroup("2. Tokenization", 564, 132, 484, 90);
     HWND strategyCombo = CreateWindowExA(
-        0, "COMBOBOX", "",
-        WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-        580, 56, 452, 120,
-        parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_STRATEGY_COMBO)), inst, nullptr
-    );
+        0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
+        580, 156, 452, 140, parent,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_STRATEGY_COMBO)), inst, nullptr);
     applyFont(strategyCombo);
     hStrategyCombo = strategyCombo;
-
     SendMessageA(strategyCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Whitespace (Split by spaces only)"));
     SendMessageA(strategyCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Word/Punctuation (Split words & symbols)"));
     SendMessageA(strategyCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Rule-Based (Keep URLs, emails, #tags, C++)"));
+    hPreserveMultiPunctCheck = createCheck("Group punctuation sequences (... / ?!)",
+        IDC_CHK_MULTI_PUNCT, 580, 190, 450);
 
-    HWND lowercaseCheck = CreateWindowExA(
-        0, "BUTTON", "Lowercase words (Machine -> machine)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        580, 90, 440, 22,
-        parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_CHK_LOWERCASE)), inst, nullptr
-    );
-    applyFont(lowercaseCheck);
-    hLowercaseCheck = lowercaseCheck;
+    createGroup("3. Token Normalization", 16, 228, 1032, 126);
+    hRemovePunctCheck = createCheck("Remove punctuation after tokenization",
+        IDC_CHK_REMOVE_PUNCT, 28, 254, 476);
 
-    HWND removePunctCheck = CreateWindowExA(
-        0, "BUTTON", "Remove punctuation tokens (!, ., ?)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        580, 114, 440, 22,
-        parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_CHK_REMOVE_PUNCT)), inst, nullptr
-    );
-    applyFont(removePunctCheck);
-    hRemovePunctCheck = removePunctCheck;
+    hReplaceNumberCheck = createCheck("Numbers -> <NUM>", IDC_CHK_REPLACE_NUM, 28, 278, 220);
+    hReplaceUrlCheck = createCheck("URLs -> <URL>", IDC_CHK_REPLACE_URL, 260, 278, 240);
+    hReplaceEmailCheck = createCheck("Emails -> <EMAIL>", IDC_CHK_REPLACE_EMAIL, 28, 306, 240);
+    HWND unicodeCombo = CreateWindowExA(0, "COMBOBOX", "",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
+        540, 252, 496, 140, parent,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_UNICODE_COMBO)), inst, nullptr);
+    applyFont(unicodeCombo);
+    hUnicodeCombo = unicodeCombo;
+    SendMessageA(unicodeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Unicode: keep original"));
+    SendMessageA(unicodeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Unicode: NFC"));
+    SendMessageA(unicodeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Unicode: NFKC"));
+    hStopWordsCheck = createCheck("Remove stop words", IDC_CHK_STOP_WORDS, 540, 280, 230);
+    hStopCaseCheck = createCheck("Case-sensitive stop words", IDC_CHK_STOP_CASE, 780, 280, 256);
+    HWND stopLabel = CreateWindowExA(0, "STATIC", "Stop words:", WS_CHILD | WS_VISIBLE,
+        540, 312, 90, 22, parent, nullptr, inst, nullptr);
+    applyFont(stopLabel);
+    HWND stopEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 634, 308, 402, 26, parent,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_STOP_WORDS_EDIT)), inst, nullptr);
+    applyFont(stopEdit);
+    hStopWordsEdit = stopEdit;
 
-    HWND morphologyCheck = CreateWindowExA(
-        0, "BUTTON", "Apply morphology stemming (learning -> learn, models -> model)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        580, 138, 455, 22,
-        parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_CHK_MORPHOLOGY)), inst, nullptr
-    );
-    applyFont(morphologyCheck);
-    hMorphologyCheck = morphologyCheck;
-
-    HWND normalizeSpaceCheck = CreateWindowExA(
-        0, "BUTTON", "Normalize extra spaces",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        580, 162, 210, 22,
-        parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_CHK_NORM_SPACE)), inst, nullptr
-    );
-    applyFont(normalizeSpaceCheck);
-    hNormalizeSpaceCheck = normalizeSpaceCheck;
-
-    HWND preserveMultiPunctCheck = CreateWindowExA(
-        0, "BUTTON", "Group multi-punct (... / ?!)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        800, 162, 235, 22,
-        parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_CHK_MULTI_PUNCT)), inst, nullptr
-    );
-    applyFont(preserveMultiPunctCheck);
-    hPreserveMultiPunctCheck = preserveMultiPunctCheck;
-
+    createGroup("4. Morphology (Optional)", 16, 360, 1032, 56);
+    hMorphologyCheck = createCheck("English stemming (learning -> learn, models -> model)",
+        IDC_CHK_MORPHOLOGY, 28, 384, 990);
     // --- Section 3: Vocabulary & Sequence Alignment Parameters ---
     HWND hGroupParams = CreateWindowExA(
-        0, "BUTTON", "3. Vocabulary Filtering && Sequence Alignment Parameters",
+        0, "BUTTON", "5. Vocabulary Filtering && Sequence Alignment Parameters",
         WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 228, 1032, 64, parent, nullptr, inst, nullptr
+        16, 422, 1032, 64, parent, nullptr, inst, nullptr
     );
     applyFont(hGroupParams, true);
 
     HWND hLblMinFreq = CreateWindowExA(
         0, "STATIC", "Min Word Freq (minFrequency):",
         WS_CHILD | WS_VISIBLE,
-        28, 254, 195, 22, parent, nullptr, inst, nullptr
+        28, 448, 195, 22, parent, nullptr, inst, nullptr
     );
     applyFont(hLblMinFreq);
 
     HWND minFreqEdit = CreateWindowExA(
         WS_EX_CLIENTEDGE, "EDIT", "1",
         WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL,
-        226, 250, 58, 26,
+        226, 444, 58, 26,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_EDIT_MIN_FREQ)), inst, nullptr
     );
     applyFont(minFreqEdit);
@@ -406,14 +434,14 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hLblMaxVocab = CreateWindowExA(
         0, "STATIC", "Vocab Limit (0 = unlimited):",
         WS_CHILD | WS_VISIBLE,
-        304, 254, 178, 22, parent, nullptr, inst, nullptr
+        304, 448, 178, 22, parent, nullptr, inst, nullptr
     );
     applyFont(hLblMaxVocab);
 
     HWND maxVocabEdit = CreateWindowExA(
         WS_EX_CLIENTEDGE, "EDIT", "0",
         WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL,
-        484, 250, 62, 26,
+        484, 444, 62, 26,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_EDIT_MAX_VOCAB)), inst, nullptr
     );
     applyFont(maxVocabEdit);
@@ -422,14 +450,14 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hLblMaxLength = CreateWindowExA(
         0, "STATIC", "Fixed Seq Length (0 = auto):",
         WS_CHILD | WS_VISIBLE,
-        566, 254, 180, 22, parent, nullptr, inst, nullptr
+        566, 448, 180, 22, parent, nullptr, inst, nullptr
     );
     applyFont(hLblMaxLength);
 
     HWND maxLengthEdit = CreateWindowExA(
         WS_EX_CLIENTEDGE, "EDIT", "0",
         WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL,
-        748, 250, 62, 26,
+        748, 444, 62, 26,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_EDIT_MAX_LENGTH)), inst, nullptr
     );
     applyFont(maxLengthEdit);
@@ -438,23 +466,23 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnResetParams = CreateWindowExA(
         0, "BUTTON", "Reset Defaults",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        830, 248, 202, 30,
+        830, 442, 202, 30,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_RESET_PARAMS)), inst, nullptr
     );
     applyFont(hBtnResetParams);
 
     // --- Section 4: Pipeline Step-by-Step Controls & CSV Export ---
     HWND hGroupActions = CreateWindowExA(
-        0, "BUTTON", "4. Pipeline Execution Steps && CSV Export (Click Step-by-Step or Run Full Pipeline)",
+        0, "BUTTON", "6. Pipeline Execution Steps && CSV Export (Click Step-by-Step or Run Full Pipeline)",
         WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 298, 1032, 66, parent, nullptr, inst, nullptr
+        16, 492, 1032, 66, parent, nullptr, inst, nullptr
     );
     applyFont(hGroupActions, true);
 
     HWND hBtnTokenize = CreateWindowExA(
         0, "BUTTON", "1. Tokenize Text",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        28, 322, 175, 32,
+        28, 516, 175, 32,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_STEP_TOKENIZE)), inst, nullptr
     );
     applyFont(hBtnTokenize, true);
@@ -462,7 +490,7 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnVocab = CreateWindowExA(
         0, "BUTTON", "2. Build Vocabulary",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        215, 322, 185, 32,
+        215, 516, 185, 32,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_STEP_VOCAB)), inst, nullptr
     );
     applyFont(hBtnVocab, true);
@@ -470,7 +498,7 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnEncode = CreateWindowExA(
         0, "BUTTON", "3. Encode && Analyze",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        412, 322, 190, 32,
+        412, 516, 190, 32,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_STEP_ENCODE)), inst, nullptr
     );
     applyFont(hBtnEncode, true);
@@ -478,7 +506,7 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnRunAll = CreateWindowExA(
         0, "BUTTON", "Run Full Pipeline (1-3)",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        614, 322, 205, 32,
+        614, 516, 205, 32,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_RUN_PIPELINE)), inst, nullptr
     );
     applyFont(hBtnRunAll, true);
@@ -486,23 +514,23 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnExportCsv = CreateWindowExA(
         0, "BUTTON", "4. Export CSV Files",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        831, 322, 201, 32,
+        831, 516, 201, 32,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_EXPORT_CSV)), inst, nullptr
     );
     applyFont(hBtnExportCsv, true);
 
     // --- Section 5: Extracted Tokens Table (Bottom-Left) ---
     HWND hGroupTokens = CreateWindowExA(
-        0, "BUTTON", "5. Extracted Tokens && Vocabulary Mapping",
+        0, "BUTTON", "7. Extracted Tokens && Vocabulary Mapping",
         WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 370, 500, 326, parent, nullptr, inst, nullptr
+        16, 564, 500, 256, parent, nullptr, inst, nullptr
     );
     applyFont(hGroupTokens, true);
 
-    HWND tokensTable = CreateWindowExA(
-        WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
+    HWND tokensTable = CreateWindowExW(
+        WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
         WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SINGLESEL,
-        28, 394, 476, 290,
+        28, 588, 476, 220,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_LIST_TOKENS)), inst, nullptr
     );
     applyFont(tokensTable);
@@ -510,16 +538,16 @@ void MainWindow::createControls(void* parentPtr) {
 
     // --- Section 6: Corpus & Vectorization Statistics Table (Bottom-Right) ---
     HWND hGroupStats = CreateWindowExA(
-        0, "BUTTON", "6. Corpus && Vectorization Summary (With Plain-Language Guide)",
+        0, "BUTTON", "8. Corpus && Vectorization Summary (With Plain-Language Guide)",
         WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        528, 370, 520, 326, parent, nullptr, inst, nullptr
+        528, 564, 520, 256, parent, nullptr, inst, nullptr
     );
     applyFont(hGroupStats, true);
 
-    HWND statsTable = CreateWindowExA(
-        WS_EX_CLIENTEDGE, WC_LISTVIEWA, "",
+    HWND statsTable = CreateWindowExW(
+        WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
         WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SINGLESEL,
-        540, 394, 496, 290,
+        540, 588, 496, 220,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_LIST_STATS)), inst, nullptr
     );
     applyFont(statsTable);
@@ -529,16 +557,16 @@ void MainWindow::createControls(void* parentPtr) {
 
     // --- Section 7: Live Status Banner & Footer ---
     HWND hGroupSummary = CreateWindowExA(
-        0, "BUTTON", "7. Pipeline Status && Active Configuration",
+        0, "BUTTON", "9. Pipeline Status && Active Configuration",
         WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 702, 1032, 68, parent, nullptr, inst, nullptr
+        16, 826, 1032, 68, parent, nullptr, inst, nullptr
     );
     applyFont(hGroupSummary, true);
 
     HWND summaryStatic = CreateWindowExA(
         0, "STATIC", "",
         WS_CHILD | WS_VISIBLE,
-        28, 722, 785, 40,
+        28, 846, 785, 40,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_SUMMARY_STATIC)), inst, nullptr
     );
     applyFont(summaryStatic);
@@ -547,7 +575,7 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnApply = CreateWindowExA(
         0, "BUTTON", "Apply Configuration && Close",
         WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        824, 722, 210, 36,
+        824, 846, 210, 36,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_APPLY_CLOSE)), inst, nullptr
     );
     applyFont(hBtnApply, true);
@@ -593,6 +621,7 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
             return 0;
 
         case WM_COMMAND: {
+            if (syncingControls) return 0;
             int id = LOWORD(wParam);
             int code = HIWORD(wParam);
 
@@ -601,7 +630,7 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
                     "Machine learning models are running fast! Contact nlp@university.edu.\r\n"
                     "Natural language processing in C++ handles 100% of #machinelearning tasks.\r\n"
                     "Learning systems and data models improve text processing.";
-                SetWindowTextA(static_cast<HWND>(hInputEdit), config.inputText.c_str());
+                SetWindowTextW(static_cast<HWND>(hInputEdit), utf8ToWide(config.inputText).c_str());
                 syncConfigFromControls();
                 runFullPipeline();
                 return 0;
@@ -609,7 +638,7 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
 
             if (id == IDC_BTN_CLEAR_TEXT && code == BN_CLICKED) {
                 config.inputText.clear();
-                SetWindowTextA(static_cast<HWND>(hInputEdit), "");
+                SetWindowTextW(static_cast<HWND>(hInputEdit), L"");
                 syncConfigFromControls();
                 runFullPipeline();
                 return 0;
@@ -664,7 +693,10 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
                 return 0;
             }
 
-            if ((id == IDC_STRATEGY_COMBO && code == CBN_SELCHANGE) ||
+            if (((id == IDC_STRATEGY_COMBO || id == IDC_NEWLINE_COMBO || id == IDC_UNICODE_COMBO) && code == CBN_SELCHANGE) ||
+                ((id == IDC_CHK_REPLACE_NUM || id == IDC_CHK_REPLACE_URL || id == IDC_CHK_REPLACE_EMAIL ||
+                  id == IDC_CHK_STOP_WORDS || id == IDC_CHK_STOP_CASE) && code == BN_CLICKED) ||
+                (id == IDC_CHK_TRIM_SPACE && code == BN_CLICKED) ||
                 (id == IDC_CHK_LOWERCASE && code == BN_CLICKED) ||
                 (id == IDC_CHK_REMOVE_PUNCT && code == BN_CLICKED) ||
                 (id == IDC_CHK_MORPHOLOGY && code == BN_CLICKED) ||
@@ -675,7 +707,7 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
                 return 0;
             }
 
-            if ((id == IDC_INPUT_EDIT || id == IDC_EDIT_MIN_FREQ ||
+            if ((id == IDC_INPUT_EDIT || id == IDC_STOP_WORDS_EDIT || id == IDC_EDIT_MIN_FREQ ||
                  id == IDC_EDIT_MAX_VOCAB || id == IDC_EDIT_MAX_LENGTH) && code == EN_CHANGE) {
                 syncConfigFromControls();
                 updateSummaryText();
@@ -702,14 +734,28 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
 void MainWindow::syncControlsFromConfig() {
 #ifdef _WIN32
     if (!hWnd) return;
+    struct SyncGuard {
+        bool& flag;
+        explicit SyncGuard(bool& value) : flag(value) { flag = true; }
+        ~SyncGuard() { flag = false; }
+    } guard(syncingControls);
 
-    SetWindowTextA(static_cast<HWND>(hInputEdit), config.inputText.c_str());
+    SetWindowTextW(static_cast<HWND>(hInputEdit), utf8ToWide(config.inputText).c_str());
     SendMessageA(static_cast<HWND>(hStrategyCombo), CB_SETCURSEL, static_cast<WPARAM>(config.strategy), 0);
 
     SendMessageA(static_cast<HWND>(hLowercaseCheck), BM_SETCHECK, config.lowercase ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageA(static_cast<HWND>(hRemovePunctCheck), BM_SETCHECK, config.removePunctuation ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageA(static_cast<HWND>(hMorphologyCheck), BM_SETCHECK, config.applyMorphology ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hUnicodeCombo), CB_SETCURSEL, static_cast<WPARAM>(config.normalization.unicode), 0);
+    SendMessageA(static_cast<HWND>(hReplaceNumberCheck), BM_SETCHECK, config.normalization.replaceNumbers ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hReplaceUrlCheck), BM_SETCHECK, config.normalization.replaceUrls ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hReplaceEmailCheck), BM_SETCHECK, config.normalization.replaceEmails ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hStopWordsCheck), BM_SETCHECK, config.normalization.removeStopWords ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hStopCaseCheck), BM_SETCHECK, config.normalization.stopWordsCaseSensitive ? BST_CHECKED : BST_UNCHECKED, 0);
+    SetWindowTextW(static_cast<HWND>(hStopWordsEdit), utf8ToWide(config.stopWordsText).c_str());
     SendMessageA(static_cast<HWND>(hNormalizeSpaceCheck), BM_SETCHECK, config.normalizeWhitespace ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hTrimSpaceCheck), BM_SETCHECK, config.trimWhitespace ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageA(static_cast<HWND>(hNewlineCombo), CB_SETCURSEL, static_cast<WPARAM>(config.newlineMode), 0);
     SendMessageA(static_cast<HWND>(hPreserveMultiPunctCheck), BM_SETCHECK, config.preserveMultiCharPunctuation ? BST_CHECKED : BST_UNCHECKED, 0);
 
     SetWindowTextA(static_cast<HWND>(hMinFreqEdit), std::to_string(config.minFrequency).c_str());
@@ -734,7 +780,20 @@ void MainWindow::syncConfigFromControls() {
     config.lowercase = (SendMessageA(static_cast<HWND>(hLowercaseCheck), BM_GETCHECK, 0, 0) == BST_CHECKED);
     config.removePunctuation = (SendMessageA(static_cast<HWND>(hRemovePunctCheck), BM_GETCHECK, 0, 0) == BST_CHECKED);
     config.applyMorphology = (SendMessageA(static_cast<HWND>(hMorphologyCheck), BM_GETCHECK, 0, 0) == BST_CHECKED);
+    auto unicodeSelection = SendMessageA(static_cast<HWND>(hUnicodeCombo), CB_GETCURSEL, 0, 0);
+    if (unicodeSelection >= 0 && unicodeSelection <= 2) config.normalization.unicode = static_cast<UnicodeNormalization>(unicodeSelection);
+    config.normalization.replaceNumbers = SendMessageA(static_cast<HWND>(hReplaceNumberCheck), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    config.normalization.replaceUrls = SendMessageA(static_cast<HWND>(hReplaceUrlCheck), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    config.normalization.replaceEmails = SendMessageA(static_cast<HWND>(hReplaceEmailCheck), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    config.normalization.removeStopWords = SendMessageA(static_cast<HWND>(hStopWordsCheck), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    config.normalization.stopWordsCaseSensitive = SendMessageA(static_cast<HWND>(hStopCaseCheck), BM_GETCHECK, 0, 0) == BST_CHECKED;
+    config.stopWordsText = getEditControlText(static_cast<HWND>(hStopWordsEdit));
     config.normalizeWhitespace = (SendMessageA(static_cast<HWND>(hNormalizeSpaceCheck), BM_GETCHECK, 0, 0) == BST_CHECKED);
+    config.trimWhitespace = (SendMessageA(static_cast<HWND>(hTrimSpaceCheck), BM_GETCHECK, 0, 0) == BST_CHECKED);
+    LRESULT newlineSelection = SendMessageA(static_cast<HWND>(hNewlineCombo), CB_GETCURSEL, 0, 0);
+    if (newlineSelection >= 0 && newlineSelection <= 2) {
+        config.newlineMode = static_cast<NewlineMode>(newlineSelection);
+    }
     config.preserveMultiCharPunctuation = (SendMessageA(static_cast<HWND>(hPreserveMultiPunctCheck), BM_GETCHECK, 0, 0) == BST_CHECKED);
 
     config.minFrequency = parsePositiveIntOrDefault(getEditControlText(static_cast<HWND>(hMinFreqEdit)), 1, 1);
@@ -749,6 +808,10 @@ std::string MainWindow::buildSummaryString() const {
         << "Active Config: " << strategyTypeToString(config.strategy)
         << " | Lowercase=" << (config.lowercase ? "ON" : "OFF")
         << " | Morphology=" << (config.applyMorphology ? "ON" : "OFF")
+        << " | Spaces=" << (config.normalizeWhitespace ? "collapse" : "preserve")
+        << " | Trim=" << (config.trimWhitespace ? "ON" : "OFF")
+        << " | Newlines=" << (config.newlineMode == NewlineMode::Preserve ? "preserve" :
+                               config.newlineMode == NewlineMode::NormalizeToLf ? "LF" : "spaces")
         << " | minFreq=" << config.minFrequency
         << " | maxVocab=" << (config.maxVocabularySize == 0 ? "All" : std::to_string(config.maxVocabularySize))
         << " | maxLength=" << (config.maxLength == 0 ? "Auto" : std::to_string(config.maxLength));
@@ -764,171 +827,33 @@ void MainWindow::updateSummaryText() {
 #endif
 }
 
-std::string MainWindow::stemWord(const std::string& word) {
-    if (word.size() <= 3) return word;
-    for (char c : word) {
-        if (!std::isalpha(static_cast<unsigned char>(c))) return word;
-    }
-
-    std::string res = word;
-    auto endsWith = [&res](const std::string& suffix) {
-        return res.size() > suffix.size() + 2 &&
-               res.compare(res.size() - suffix.size(), suffix.size(), suffix) == 0;
-    };
-
-    if (endsWith("ing")) {
-        res.erase(res.size() - 3);
-        if (res.size() >= 4 && res[res.size() - 1] == res[res.size() - 2] &&
-            res.back() != 'l' && res.back() != 's') {
-            res.pop_back();
-        }
-    } else if (endsWith("ed")) {
-        res.erase(res.size() - 2);
-    } else if (endsWith("ies") && res.size() > 4) {
-        res.replace(res.size() - 3, 3, "y");
-    } else if (endsWith("es") && (res.compare(res.size() - 4, 4, "sses") == 0 ||
-                                  res.compare(res.size() - 4, 4, "ches") == 0 ||
-                                  res.compare(res.size() - 4, 4, "shes") == 0)) {
-        res.erase(res.size() - 2);
-    } else if (res.size() > 3 && res.back() == 's' && res[res.size() - 2] != 's') {
-        res.pop_back();
-    }
-    return res;
-}
-
 std::vector<Token> MainWindow::previewTokenizeText(const std::string& rawText) const {
-    std::vector<Token> tokens;
-    size_t pos = 0;
-    size_t sentence = 1;
-    size_t i = 0;
-    const size_t n = rawText.size();
-
-    auto normalizeTokenCase = [this](std::string s, bool isWord) {
-        if (config.lowercase) {
-            std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        }
-        if (isWord && config.applyMorphology) {
-            s = stemWord(s);
-        }
-        return s;
-    };
-
-    if (config.strategy == TokenizerStrategyType::Whitespace) {
-        while (i < n) {
-            while (i < n && std::isspace(static_cast<unsigned char>(rawText[i]))) {
-                ++i;
-            }
-            if (i >= n) break;
-            size_t start = i;
-            while (i < n && !std::isspace(static_cast<unsigned char>(rawText[i]))) {
-                ++i;
-            }
-            std::string word = normalizeTokenCase(rawText.substr(start, i - start), true);
-            tokens.emplace_back(word, TokenType::Word, pos++, sentence);
-        }
-        return tokens;
+    PipelineConfig pipeline;
+    switch (config.strategy) {
+        case TokenizerStrategyType::Whitespace: pipeline.tokenizerType = TokenizerType::Whitespace; break;
+        case TokenizerStrategyType::Basic: pipeline.tokenizerType = TokenizerType::WordPunctuation; break;
+        case TokenizerStrategyType::RuleBased: pipeline.tokenizerType = TokenizerType::RuleBased; break;
     }
-
-    while (i < n) {
-        unsigned char c = static_cast<unsigned char>(rawText[i]);
-        if (std::isspace(c)) {
-            ++i;
-            continue;
-        }
-
-        // Rule-Based special patterns: hashtags (#nlp), emails (user@domain.edu), C++
-        if (config.strategy == TokenizerStrategyType::RuleBased) {
-            if (rawText[i] == '#' && i + 1 < n && std::isalnum(static_cast<unsigned char>(rawText[i + 1]))) {
-                size_t start = i++;
-                while (i < n && (std::isalnum(static_cast<unsigned char>(rawText[i])) || rawText[i] == '_')) {
-                    ++i;
-                }
-                tokens.emplace_back(normalizeTokenCase(rawText.substr(start, i - start), false),
-                                    TokenType::Special, pos++, sentence);
-                continue;
-            }
-
-            if (std::isalpha(c)) {
-                size_t scan = i;
-                while (scan < n && (std::isalnum(static_cast<unsigned char>(rawText[scan])) ||
-                                    rawText[scan] == '.' || rawText[scan] == '_' || rawText[scan] == '-')) {
-                    ++scan;
-                }
-                if (scan < n && rawText[scan] == '@') {
-                    ++scan;
-                    while (scan < n && (std::isalnum(static_cast<unsigned char>(rawText[scan])) ||
-                                        rawText[scan] == '.' || rawText[scan] == '-')) {
-                        ++scan;
-                    }
-                    while (scan > i && rawText[scan - 1] == '.') {
-                        --scan;
-                    }
-                    tokens.emplace_back(normalizeTokenCase(rawText.substr(i, scan - i), false),
-                                        TokenType::Special, pos++, sentence);
-                    i = scan;
-                    continue;
-                }
-
-                if ((rawText[i] == 'c' || rawText[i] == 'C') && i + 2 < n &&
-                    rawText[i + 1] == '+' && rawText[i + 2] == '+') {
-                    tokens.emplace_back(normalizeTokenCase(rawText.substr(i, 3), false),
-                                        TokenType::Special, pos++, sentence);
-                    i += 3;
-                    continue;
-                }
-            }
-        }
-
-        if (std::isalpha(c)) {
-            size_t start = i;
-            while (i < n && std::isalpha(static_cast<unsigned char>(rawText[i]))) {
-                ++i;
-            }
-            std::string word = normalizeTokenCase(rawText.substr(start, i - start), true);
-            tokens.emplace_back(word, TokenType::Word, pos++, sentence);
-        } else if (std::isdigit(c)) {
-            size_t start = i;
-            while (i < n && std::isdigit(static_cast<unsigned char>(rawText[i]))) {
-                ++i;
-            }
-            tokens.emplace_back(rawText.substr(start, i - start), TokenType::Number, pos++, sentence);
-        } else if (std::ispunct(c)) {
-            char ch = rawText[i];
-            bool isPunct = (ch == '.' || ch == ',' || ch == '!' || ch == '?' ||
-                            ch == ':' || ch == ';' || ch == '(' || ch == ')' ||
-                            ch == '[' || ch == ']' || ch == '"' || ch == '\'');
-            TokenType type = isPunct ? TokenType::Punctuation : TokenType::Special;
-
-            std::string sym(1, ch);
-            ++i;
-            if (config.preserveMultiCharPunctuation && isPunct) {
-                while (i < n && (rawText[i] == ch || (ch == '?' && rawText[i] == '!'))) {
-                    sym.push_back(rawText[i]);
-                    ++i;
-                }
-            }
-
-            if (type == TokenType::Punctuation && config.removePunctuation) {
-                if (ch == '.' || ch == '!' || ch == '?') {
-                    ++sentence;
-                }
-                continue;
-            }
-
-            tokens.emplace_back(sym, type, pos++, sentence);
-            if (ch == '.' || ch == '!' || ch == '?') {
-                ++sentence;
-            }
-        } else {
-            tokens.emplace_back(std::string(1, rawText[i]), TokenType::Unknown, pos++, sentence);
-            ++i;
-        }
+    PreprocessingConfig preprocessing;
+    preprocessing.collapseHorizontalWhitespace = config.normalizeWhitespace;
+    preprocessing.trimWhitespace = config.trimWhitespace;
+    preprocessing.lowercase = config.lowercase;
+    preprocessing.newlineMode = config.newlineMode;
+    pipeline.preprocessingConfig = preprocessing;
+    pipeline.removePunctuation = config.removePunctuation;
+    pipeline.normalizationConfig = config.normalization;
+    pipeline.normalizationConfig->removePunctuation = config.removePunctuation;
+    if (config.normalization.removeStopWords) {
+        PreprocessingConfig listOptions;
+        listOptions.newlineMode = NewlineMode::ReplaceWithSpace;
+        std::istringstream words(TextPreprocessor(listOptions).process(config.stopWordsText));
+        std::string word;
+        while (words >> word) pipeline.stopWords.add(word);
     }
-
-    return tokens;
+    pipeline.enableMorphologyNormalization = config.applyMorphology;
+    pipeline.preserveMultiCharPunctuation = config.preserveMultiCharPunctuation;
+    return Application(pipeline).tokenizeText(rawText);
 }
-
 void MainWindow::computeBowAndTfIdfVectors() {
     size_t vocabSz = currentVocab.size();
     auto& docs = currentDataset.getDocuments();
@@ -971,27 +896,13 @@ void MainWindow::runTokenizationStep() {
     currentDataset = Dataset();
     currentVocab.clear();
 
-    std::istringstream lineStream(config.inputText);
-    std::string line;
-    int docId = 1;
-    size_t totalTokensExtracted = 0;
-
-    while (std::getline(lineStream, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (line.empty()) continue;
-
-        Document doc;
-        doc.id = docId;
-        doc.filePath = "input_line_" + std::to_string(docId) + ".txt";
-        doc.rawText = line;
-        doc.tokens = previewTokenizeText(line);
-        totalTokensExtracted += doc.tokens.size();
-        currentDataset.addDocument(doc);
-        ++docId;
-    }
-
+    Document doc;
+    doc.id = 1;
+    doc.filePath = "input_document.txt";
+    doc.rawText = config.inputText;
+    doc.tokens = previewTokenizeText(doc.rawText);
+    const size_t totalTokensExtracted = doc.tokens.size();
+    currentDataset.addDocument(doc);
     populateTokensTableFromDataset(currentDataset, currentVocab);
 
     currentStage = PipelineStage::Tokenized;

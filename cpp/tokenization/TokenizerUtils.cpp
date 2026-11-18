@@ -78,7 +78,8 @@ TokenType classify(char32_t character) {
 }
 
 bool endsSentence(char32_t character) {
-    return character == U'.' || character == U'!' || character == U'?' || character == 0x2026;
+    return character == U'.' || character == U'!' || character == U'?' || character == 0x2026 ||
+           character == 0x3002 || character == 0xFF01 || character == 0xFF1F;
 }
 
 void TokenBuilder::append(const string& text, TokenType type, bool sentenceEnd) {
