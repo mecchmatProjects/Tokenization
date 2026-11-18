@@ -5,6 +5,7 @@
 #include <iostream>
 #include <optional>
 #include "preprocessing/PreprocessingConfig.h"
+#include "normalization/Normalizer.h"
 #include "Token.h"
 #include "Document.h"
 #include "Dataset.h"
@@ -31,6 +32,9 @@ struct PipelineConfig {
     bool enableMorphologyNormalization = false;
     bool replaceNumbersWithMarker = false;
     bool replaceUrlsAndEmailsWithMarker = false;
+    // Explicit options override legacy punctuation/marker switches when present.
+    std::optional<NormalizationConfig> normalizationConfig;
+    StopWordDictionary stopWords;
 
     // Role 3: Vocabulary, Vectorization & Analytics settings
     int minFrequency = 1;
@@ -65,7 +69,7 @@ private:
     CorpusStatistics lastStatistics;
     MorphologyFunc customMorphologyNormalizer;
 
-    // Applies post-tokenization filters (case folding and punctuation removal)
+    // Applies case processing to datasets supplied as existing tokens.
     std::vector<Token> applyPostTokenFilters(const std::vector<Token>& rawTokens,
                                            bool normalizeCase = true) const;
 
