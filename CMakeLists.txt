@@ -16,7 +16,12 @@ set(CORE_SOURCES
     cpp/src/TfIdfEncoder.cpp
     cpp/src/StatisticsAnalyzer.cpp
     cpp/src/Exporter.cpp
+    cpp/src/MainWindow.cpp
+    feature/morphology-word
+    cpp/src/Word.cpp
     cpp/src/Application.cpp
+    develop_cpp
+    tests/test_morphology.cpp
 )
 
 add_executable(tokenizer
