@@ -21,6 +21,7 @@
 struct PipelineConfig {
     // Role 1: Tokenization & Preprocessing settings
     TokenizerType tokenizerType = TokenizerType::WordPunctuation;
+    TextEncoding textEncoding = TextEncoding::Utf8;
     bool normalizeWhitespace = true;
     bool convertToLowercase = true;
     bool removePunctuation = false;

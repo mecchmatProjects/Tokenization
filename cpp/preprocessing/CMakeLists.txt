@@ -3,7 +3,7 @@ project(Preprocessing LANGUAGES C CXX)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/Dependencies.cmake")
 
-add_library(preprocessing STATIC TextPreprocessor.cpp)
+add_library(preprocessing STATIC TextPreprocessor.cpp TextLoader.cpp)
 target_compile_features(preprocessing PUBLIC cxx_std_17)
 target_include_directories(preprocessing PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(preprocessing PRIVATE utf8proc)

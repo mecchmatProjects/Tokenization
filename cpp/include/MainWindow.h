@@ -39,6 +39,7 @@ struct GuiConfig {
         "Natural language processing in C++ handles 100% of #machinelearning tasks.\r\n"
         "Learning systems and data models improve text processing.";
     TokenizerStrategyType strategy = TokenizerStrategyType::RuleBased;
+    TextEncoding inputEncoding = TextEncoding::Utf8;
     bool lowercase = true;
     bool removePunctuation = false;
     bool normalizeWhitespace = true;
@@ -95,6 +96,8 @@ public:
     static constexpr int IDC_CHK_STOP_WORDS       = 130;
     static constexpr int IDC_CHK_STOP_CASE        = 131;
     static constexpr int IDC_STOP_WORDS_EDIT      = 132;
+    static constexpr int IDC_ENCODING_COMBO       = 133;
+    static constexpr int IDC_BTN_OPEN_FILE        = 134;
 
 private:
     GuiConfig config;
@@ -105,6 +108,7 @@ private:
 
     // Active pipeline data artifacts
     Dataset currentDataset;
+    std::vector<LoadedText> loadedDocuments;
     Vocabulary currentVocab;
     CorpusStatistics currentStats{};
     size_t currentPadCount = 0;
@@ -117,6 +121,7 @@ private:
     void* hBoldFont = nullptr;
 
     void* hInputEdit = nullptr;
+    void* hEncodingCombo = nullptr;
     void* hStrategyCombo = nullptr;
     void* hLowercaseCheck = nullptr;
     void* hRemovePunctCheck = nullptr;
@@ -169,6 +174,8 @@ public:
     void runBuildVocabularyStep();
     void runEncodeDatasetStep();
     void runFullPipeline();
+    // UTF-8 filesystem paths. Loading replaces the input only after all files have been decoded.
+    void loadTextFile(const std::string& path);
     bool exportToCsv(const std::string& outputDir = "output", bool showPopup = false);
 
     // Table population methods

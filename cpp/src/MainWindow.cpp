@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <stdexcept>
+#include <memory>
 
 #ifdef _WIN32
 #define TokenType Win32TokenType_ConflictFix
@@ -24,9 +25,46 @@
 #endif
 #include <windows.h>
 #include <commctrl.h>
+#include <shobjidl.h>
 #undef TokenType
 
 namespace {
+    struct ComRelease {
+        template<class T> void operator()(T* object) const { if (object) object->Release(); }
+    };
+    std::filesystem::path selectTextSource(HWND owner) {
+        const auto init = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        if (FAILED(init) && init != RPC_E_CHANGED_MODE) throw std::runtime_error("Cannot initialize the file dialog");
+        struct Apartment {
+            bool owned;
+            ~Apartment() { if (owned) CoUninitialize(); }
+        } apartment{SUCCEEDED(init)};
+        IFileOpenDialog* rawDialog = nullptr;
+        if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                    IID_PPV_ARGS(&rawDialog)))) {
+            throw std::runtime_error("Cannot create the file dialog");
+        }
+        std::unique_ptr<IFileOpenDialog, ComRelease> dialog(rawDialog);
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        options |= FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST;
+        if (FAILED(dialog->SetOptions(options))) throw std::runtime_error("Cannot configure the file dialog");
+        dialog->SetTitle(L"Open text document");
+        const COMDLG_FILTERSPEC filters[] = {{L"Text documents", L"*.txt"}, {L"All files", L"*.*"}};
+        dialog->SetFileTypes(2, filters);
+        const auto shown = dialog->Show(owner);
+        if (shown == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return {};
+        if (FAILED(shown)) throw std::runtime_error("Cannot open the file dialog");
+        IShellItem* rawItem = nullptr;
+        if (FAILED(dialog->GetResult(&rawItem))) throw std::runtime_error("Cannot read the selected path");
+        std::unique_ptr<IShellItem, ComRelease> item(rawItem);
+        PWSTR name = nullptr;
+        if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &name))) throw std::runtime_error("Cannot read the selected path");
+        const std::filesystem::path result(name);
+        CoTaskMemFree(name);
+        return result;
+    }
+
     std::wstring utf8ToWide(const std::string& text) {
         if (text.empty()) return {};
         const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
@@ -122,7 +160,7 @@ namespace {
                 static_cast<unsigned long long>(wParam),
                 static_cast<long long>(lParam)));
             } catch (const std::exception& error) {
-                MessageBoxA(hwnd, error.what(), "Processing error", MB_OK | MB_ICONERROR);
+                MessageBoxW(hwnd, utf8ToWide(error.what()).c_str(), L"Processing error", MB_OK | MB_ICONERROR);
                 return 0;
             }
         }
@@ -311,16 +349,33 @@ void MainWindow::createControls(void* parentPtr) {
     HWND inputEdit = CreateWindowExW(
         WS_EX_CLIENTEDGE, L"EDIT", L"",
         WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN,
-        28, 34, 510, 138,
+        28, 34, 510, 100,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_INPUT_EDIT)), inst, nullptr
     );
     applyFont(inputEdit);
     hInputEdit = inputEdit;
+    SendMessageW(inputEdit, EM_SETLIMITTEXT, 0x7FFFFFFE, 0);
+    HWND encodingLabel = CreateWindowExA(0, "STATIC", "Encoding:", WS_CHILD | WS_VISIBLE,
+        28, 146, 70, 22, parent, nullptr, inst, nullptr);
+    applyFont(encodingLabel);
+    HWND encodingCombo = CreateWindowExA(0, "COMBOBOX", "",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
+        100, 142, 438, 150, parent,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_ENCODING_COMBO)), inst, nullptr);
+    applyFont(encodingCombo);
+    hEncodingCombo = encodingCombo;
+    for (const char* name : {"UTF-8", "UTF-16 LE", "UTF-16 BE", "Windows-1251"})
+        SendMessageA(encodingCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+    HWND openFileButton = CreateWindowExA(0, "BUTTON", "Open File",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        28, 180, 155, 30, parent,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_OPEN_FILE)), inst, nullptr);
+    applyFont(openFileButton);
 
     HWND hBtnSample = CreateWindowExA(
         0, "BUTTON", "Load Sample Corpus",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        28, 180, 165, 30,
+        193, 180, 185, 30,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_LOAD_SAMPLE)), inst, nullptr
     );
     applyFont(hBtnSample);
@@ -328,7 +383,7 @@ void MainWindow::createControls(void* parentPtr) {
     HWND hBtnClear = CreateWindowExA(
         0, "BUTTON", "Clear Text",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        202, 180, 120, 30,
+        388, 180, 150, 30,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_CLEAR_TEXT)), inst, nullptr
     );
     applyFont(hBtnClear);
@@ -625,7 +680,21 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
             int id = LOWORD(wParam);
             int code = HIWORD(wParam);
 
+            if (id == IDC_BTN_OPEN_FILE && code == BN_CLICKED) {
+                syncConfigFromControls();
+                const auto path = selectTextSource(nativeWnd);
+                if (!path.empty()) loadTextFile(path.u8string());
+                return 0;
+            }
+            if (id == IDC_ENCODING_COMBO && code == CBN_SELCHANGE) {
+                syncConfigFromControls();
+                lastStatusMessage = "Encoding selected for the next file import. Reopen to decode again.";
+                updateSummaryText();
+                return 0;
+            }
+
             if (id == IDC_BTN_LOAD_SAMPLE && code == BN_CLICKED) {
+                loadedDocuments.clear();
                 config.inputText =
                     "Machine learning models are running fast! Contact nlp@university.edu.\r\n"
                     "Natural language processing in C++ handles 100% of #machinelearning tasks.\r\n"
@@ -637,6 +706,7 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
             }
 
             if (id == IDC_BTN_CLEAR_TEXT && code == BN_CLICKED) {
+                loadedDocuments.clear();
                 config.inputText.clear();
                 SetWindowTextW(static_cast<HWND>(hInputEdit), L"");
                 syncConfigFromControls();
@@ -741,6 +811,7 @@ void MainWindow::syncControlsFromConfig() {
     } guard(syncingControls);
 
     SetWindowTextW(static_cast<HWND>(hInputEdit), utf8ToWide(config.inputText).c_str());
+    SendMessageA(static_cast<HWND>(hEncodingCombo), CB_SETCURSEL, static_cast<WPARAM>(config.inputEncoding), 0);
     SendMessageA(static_cast<HWND>(hStrategyCombo), CB_SETCURSEL, static_cast<WPARAM>(config.strategy), 0);
 
     SendMessageA(static_cast<HWND>(hLowercaseCheck), BM_SETCHECK, config.lowercase ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -771,6 +842,9 @@ void MainWindow::syncConfigFromControls() {
     if (!hWnd) return;
 
     config.inputText = getEditControlText(static_cast<HWND>(hInputEdit));
+    if (loadedDocuments.size() == 1) loadedDocuments.front().text = config.inputText;
+    const auto encodingSelection = SendMessageA(static_cast<HWND>(hEncodingCombo), CB_GETCURSEL, 0, 0);
+    if (encodingSelection >= 0 && encodingSelection <= 3) config.inputEncoding = static_cast<TextEncoding>(encodingSelection);
 
     LRESULT sel = SendMessageA(static_cast<HWND>(hStrategyCombo), CB_GETCURSEL, 0, 0);
     if (sel >= 0 && sel <= 2) {
@@ -822,7 +896,7 @@ void MainWindow::updateSummaryText() {
 #ifdef _WIN32
     if (hSummaryStatic) {
         std::string summary = buildSummaryString();
-        SetWindowTextA(static_cast<HWND>(hSummaryStatic), summary.c_str());
+        SetWindowTextW(static_cast<HWND>(hSummaryStatic), utf8ToWide(summary).c_str());
     }
 #endif
 }
@@ -892,18 +966,35 @@ void MainWindow::computeBowAndTfIdfVectors() {
     }
 }
 
-void MainWindow::runTokenizationStep() {
-    currentDataset = Dataset();
-    currentVocab.clear();
+void MainWindow::loadTextFile(const std::string& path) {
+    auto file = TextLoader::loadFile(std::filesystem::u8path(path), config.inputEncoding);
+    loadedDocuments = {std::move(file)};
+    config.inputText = loadedDocuments.front().text;
+    syncControlsFromConfig();
+    runTokenizationStep();
+}
 
-    Document doc;
-    doc.id = 1;
-    doc.filePath = "input_document.txt";
-    doc.rawText = config.inputText;
-    doc.tokens = previewTokenizeText(doc.rawText);
-    const size_t totalTokensExtracted = doc.tokens.size();
-    currentDataset.addDocument(doc);
+void MainWindow::runTokenizationStep() {
+    Dataset tokenized;
+    size_t totalTokensExtracted = 0;
+    const auto sources = loadedDocuments.empty()
+        ? std::vector<LoadedText>{{"input_document.txt", config.inputText}} : loadedDocuments;
+    for (const auto& source : sources) {
+        Document doc;
+        doc.id = static_cast<int>(tokenized.size()) + 1;
+        doc.filePath = source.filePath;
+        doc.rawText = source.text;
+        doc.tokens = previewTokenizeText(doc.rawText);
+        totalTokensExtracted += doc.tokens.size();
+        tokenized.addDocument(doc);
+    }
+    currentDataset = std::move(tokenized);
+    currentVocab.clear();
+    currentStats = {};
+    currentPadCount = 0;
+    currentPadRatio = 0;
     populateTokensTableFromDataset(currentDataset, currentVocab);
+    populateStatisticsTable(currentStats, currentVocab.size());
 
     currentStage = PipelineStage::Tokenized;
     lastStatusMessage = "Step 1 (Tokenize) complete: Extracted " + std::to_string(totalTokensExtracted) +
@@ -1268,6 +1359,9 @@ const GuiConfig& MainWindow::getConfig() const {
 }
 
 void MainWindow::setConfig(const GuiConfig& newConfig) {
+    if (newConfig.inputText != config.inputText) {
+        loadedDocuments.clear();
+    }
     config = newConfig;
     syncControlsFromConfig();
 }
