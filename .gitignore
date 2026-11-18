@@ -8,3 +8,15 @@
 /.vs/Tokenization/v18/Browse.VC.db
 /.vs/Tokenization/v18/Browse.VC.db-shm
 /.vs/Tokenization/v18/Browse.VC.db-wal
+*.db
+/.vs/Tokenization/CopilotIndices/18.11.1036.60925/SemanticSymbols.db-shm
+/.vs/Tokenization/CopilotIndices/18.11.1036.60925/SemanticSymbols.db-wal
+/.vs/CMake Overview
+/.vs/ProjectSettings.json
+/.vs/slnx.sqlite
+/out/build/x64-Debug/.cmake/api/v1/reply
+/CMakeSettings.json
+/.vs/VSWorkspaceState.json
+/out/build/x64-Debug
+/datasets/desktop.ini
+/desktop.ini
