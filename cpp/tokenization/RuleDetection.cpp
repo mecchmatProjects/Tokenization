@@ -4,7 +4,6 @@
 
 namespace RuleDetection {
 const std::vector<DetectionRule>& rules() {
-    // Add a function or lambda here. Specific rules precede general ones.
     static const std::vector<DetectionRule> detectors = {
         RuleDetectors::url,
         RuleDetectors::email,

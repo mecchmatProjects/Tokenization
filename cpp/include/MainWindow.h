@@ -174,7 +174,6 @@ public:
     void runBuildVocabularyStep();
     void runEncodeDatasetStep();
     void runFullPipeline();
-    // UTF-8 filesystem paths. Loading replaces the input only after all files have been decoded.
     void loadTextFile(const std::string& path);
     bool exportToCsv(const std::string& outputDir = "output", bool showPopup = false);
 

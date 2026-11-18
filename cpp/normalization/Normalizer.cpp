@@ -11,7 +11,7 @@ std::vector<Token> Normalizer::normalize(
     const StopWordDictionary& stopWords
 ) const {
     using normalization_detail::normalizeUnicode;
-    normalizeUnicode("", config.unicode); // Validate the enum even for an empty input.
+    normalizeUnicode("", config.unicode);
     std::unordered_set<std::string> stopKeys;
     if (config.removeStopWords) {
         for (const auto& word : stopWords.words()) {
@@ -26,7 +26,6 @@ std::vector<Token> Normalizer::normalize(
         if ((config.replaceUrls || config.replaceEmails) && !token.text.empty()) {
             const auto chars = tokenization_detail::decodeUtf8(token.text);
             const RuleContext context{token.text, chars, {}};
-            // URLs may contain '@', so recognize them before considering email.
             const auto url = RuleDetectors::url(context, 0);
             if (url.length == chars.size()) {
                 if (config.replaceUrls) { token.text = SpecialMarkers::Url; token.type = TokenType::Special; }

@@ -81,7 +81,7 @@ int main() {
 
         GuiConfig guiConfig;
         guiConfig.inputEncoding = E::Windows1251;
-        MainWindow gui(guiConfig); // Test input and pipeline state without creating native windows.
+        MainWindow gui(guiConfig);
         gui.loadTextFile(first.u8string());
         require(gui.getCurrentDataset().size() == 1, "GUI must load one document");
         require(gui.getCurrentDataset().getDocuments()[0].tokens[0].text == u8"привіт", "Imported text uses NLP pipeline");

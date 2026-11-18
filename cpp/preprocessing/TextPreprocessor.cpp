@@ -52,7 +52,6 @@ std::string TextPreprocessor::process(const std::string& text) const {
         offset += static_cast<std::size_t>(length);
 
         if (isNewline(value) && config_.newlineMode != NewlineMode::Preserve) {
-            // Treat CRLF as one logical newline.
             if (value == '\r' && offset < text.size() && text[offset] == '\n') {
                 ++offset;
             }

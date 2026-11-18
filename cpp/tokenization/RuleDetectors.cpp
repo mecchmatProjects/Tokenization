@@ -26,7 +26,6 @@ bool emailLocal(char32_t c) {
     return c < 128 && symbols.find(static_cast<char>(c)) != std::string::npos;
 }
 
-// Index ASCII email spans once, avoiding a scan of the remaining text at each word.
 std::vector<std::size_t> emailSpans(const Characters& chars) {
     std::vector<std::size_t> ends(chars.size(), 0);
     for (std::size_t at = 0; at < chars.size(); ++at) {

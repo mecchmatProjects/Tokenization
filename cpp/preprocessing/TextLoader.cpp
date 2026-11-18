@@ -75,7 +75,6 @@ std::string TextLoader::decode(const std::string& bytes, TextEncoding encoding) 
             append(output, static_cast<utf8proc_int32_t>(value));
         }
     } else {
-        // Windows-1251 bytes 0x80..0xBF; 0x98 is undefined.
         static const unsigned short table[] = {
             0x0402,0x0403,0x201A,0x0453,0x201E,0x2026,0x2020,0x2021,
             0x20AC,0x2030,0x0409,0x2039,0x040A,0x040C,0x040B,0x040F,
