@@ -16,6 +16,7 @@ add_library(litcritic
     src/text_document.cpp
     src/text_loader.cpp
     src/token.cpp
+    src/tokenizer.cpp
 )
 
 target_include_directories(litcritic PUBLIC include)
@@ -34,6 +35,11 @@ add_executable(preprocessor_tests tests/preprocessor_tests.cpp)
 target_link_libraries(preprocessor_tests PRIVATE litcritic)
 
 add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(tokenizer_tests tests/tokenizer_tests.cpp)
+target_link_libraries(tokenizer_tests PRIVATE litcritic)
+
+add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 
 
