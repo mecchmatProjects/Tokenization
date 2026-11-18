@@ -10,6 +10,7 @@ include(CTest)
 enable_testing()
 
 add_library(litcritic
+    src/preprocessor.cpp
     src/sentence.cpp
     src/style_profile.cpp
     src/text_document.cpp
@@ -28,3 +29,8 @@ add_executable(text_loader_tests tests/text_loader_tests.cpp)
 target_link_libraries(text_loader_tests PRIVATE litcritic)
 
 add_test(NAME text_loader_tests COMMAND text_loader_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(preprocessor_tests tests/preprocessor_tests.cpp)
+target_link_libraries(preprocessor_tests PRIVATE litcritic)
+
+add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
