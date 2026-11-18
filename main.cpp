@@ -1,9 +1,25 @@
 #include <iostream>
 #include <clocale> // Add for aetlocale
 #include <vector>
+#include <string>
+
 #include "text_loader.h"
 #include "preprocessor.h"
 #include "text_document.h"
+#include "tokenizer.h"
+
+
+// Helper function to convert TokenType enum to readable text
+std::string tokenTypeToString(TokenType type) {
+    switch (type) {
+        case TokenType::WORD: return "WORD";
+        case TokenType::NUMBER: return "NUMBER";
+        case TokenType::PUNCTUATION: return "PUNCTUATION";
+        case TokenType::SPECIAL: return "SPECIAL";
+        default: return "UNKNOWN";
+    }
+}
+
 
 int main() {
     // Set global locale to Ukrainian UTF-8 to enable correct character classification
@@ -20,20 +36,31 @@ int main() {
 
     // Iterate through each loaded document
     for (const auto& doc : documents) {
-        std::cout << "--- Document: " << doc.getTitle() << " (" << doc.getYear() << ") ---\n";
-        
-        // Clean the raw content using our Preprocessor
-        // Flags: removePunctuation = true, toLowerCase = true
-        std::string cleanedText = Preprocessor::process(doc.getContent(), true, true);
-        
-        // Print a small preview (first 200 characters) to verify it works
-        // We check the length first to avoid errors if the text is very short
-        if (cleanedText.length() > 200) {
-            std::cout << cleanedText.substr(0, 200) << "...\n\n";
-        } else {
-            std::cout << cleanedText << "\n\n";
+        std::cout << "========================================\n";
+        std::cout << "Document: " << doc.getTitle() << " (" << doc.getYear() << ")\n";
+        std::cout << "========================================\n";
+
+        // Keep punctuation and original case so Tokenizer can detect sentences and original words
+        std::string cleanedText = Preprocessor::process(doc.getContent(), false, false);
+
+        // Tokenize the cleaned text
+        std::vector<Token> tokens = Tokenizer::tokenize(cleanedText);
+        std::cout << "Total tokens: " << tokens.size() << "\n";
+
+        // Print the first 15 tokens as a preview
+        size_t previewLimit = std::min<size_t>(15, tokens.size());
+        std::cout << "First " << previewLimit << " tokens:\n";
+
+        for (size_t i = 0; i < previewLimit; ++i) {
+            const Token& t = tokens[i];
+            std::cout << "  [" << t.getPosition() << "] "
+                      << "Sent #" << t.getSentenceNumber() << " | "
+                      << tokenTypeToString(t.getType()) << " | "
+                      << "text: \"" << t.getText() << "\" | "
+                      << "norm: \"" << t.getNormalizedText() << "\"\n";
         }
+        std::cout << "\n";
     }
-    
+
     return 0;
 }
