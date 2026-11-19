@@ -16,7 +16,6 @@
 
 REGISTER_TEST(TextEdgeCases, EmptyTextAndWhitespaceOnly) {
     PipelineConfig cfg;
-    cfg.useExternalTokenizerFactory = false;
 
     Application app(cfg);
     PipelineResult emptyRes = app.runOnText("");
@@ -44,7 +43,6 @@ REGISTER_TEST(TextEdgeCases, EmptyTextAndWhitespaceOnly) {
 
 REGISTER_TEST(TextEdgeCases, PunctuationHandling) {
     PipelineConfig cfg;
-    cfg.useExternalTokenizerFactory = false;
     cfg.removePunctuation = false;
 
     Application appWithPunct(cfg);
@@ -87,7 +85,6 @@ REGISTER_TEST(TextEdgeCases, SpecialConstructsPreservation) {
     ASSERT_EQ(std::string("C++"), decoded[2]);
 
     PipelineConfig cfg;
-    cfg.useExternalTokenizerFactory = false;
     cfg.tokenizerType = TokenizerType::RuleBased;
     Application app(cfg);
     PipelineResult res = app.runOnText("Contact email@example.com #machinelearning C++ price=100$");
@@ -121,7 +118,6 @@ REGISTER_TEST(TextEdgeCases, UnicodeAndCyrillicUtf8) {
     ASSERT_EQ(std::string(u8"працює"), decoded[4]);
 
     PipelineConfig cfg;
-    cfg.useExternalTokenizerFactory = false;
     Application app(cfg);
     PipelineResult res = app.runOnText(u8"Привіт, світ! Токенізація UTF-8 працює.");
     ASSERT_FALSE(res.tokenFrequencies.empty());
