@@ -10,13 +10,13 @@ enable_testing()
 
 add_library(litcritic
     src/lexical_analyzer.cpp
-)
+ "include/sentence_analyzer.h" "src/sentence_analyzer.cpp")
 
 target_include_directories(litcritic PUBLIC include)
 
 add_executable(lexical_analyzer_tests 
     tests/lexical_analyzer_tests.cpp
-)
+ "include/sentence_analyzer.h" "src/sentence_analyzer.cpp")
 
 target_link_libraries(lexical_analyzer_tests PRIVATE litcritic)
 
