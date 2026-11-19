@@ -11,15 +11,25 @@ bool isAlmostEqual(double a, double b, double epsilon = 1e-6) {
 
 void testStandardPhrase() {
     // 1. Формуємо фейковий текст для фрази: "Кіт їсть. Кіт спить."
-    Text sampleText;
-    sampleText.tokens = {
-        { "Кіт",   "кіт",   TokenType::WORD },
-        { "їсть",  "їсти",  TokenType::WORD },
-        { ".",     ".",     TokenType::PUNCTUATION },
-        { "Кіт",   "кіт",   TokenType::WORD },
-        { "спить", "спати", TokenType::WORD },
-        { ".",     ".",     TokenType::PUNCTUATION }
-    };
+    Token t1("Кіт", "кіт", TokenType::WORD, 0, 1);
+    t1.setLemma("кіт");
+
+    Token t2("їсть", "їсть", TokenType::WORD, 1, 1);
+    t2.setLemma("їсти");
+
+    Token t3(".", ".", TokenType::PUNCTUATION, 2, 1);
+    t3.setLemma(".");
+
+    Token t4("Кіт", "кіт", TokenType::WORD, 3, 2);
+    t4.setLemma("кіт");
+
+    Token t5("спить", "спить", TokenType::WORD, 4, 2);
+    t5.setLemma("спати");
+
+    Token t6(".", ".", TokenType::PUNCTUATION, 5, 2);
+    t6.setLemma(".");
+
+    Text sampleText = { t1, t2, t3, t4, t5, t6 };
 
     LexicalAnalyzer analyzer;
 
@@ -39,17 +49,24 @@ void testStandardPhrase() {
 }
 
 void testEmptyOrPunctuationOnlyText() {
-    Text emptyText;
-    emptyText.tokens = {
-        { "...", "...", TokenType::PUNCTUATION },
-        { "!",   "!",   TokenType::PUNCTUATION }
+    // 1. Тест для тексту лише зі знаків пунктуації
+    Text punctuationOnlyText = {
+        Token("...", "...", TokenType::PUNCTUATION, 0, 1),
+        Token("!",   "!",   TokenType::PUNCTUATION, 1, 1)
     };
 
     LexicalAnalyzer analyzer;
 
-    assert(analyzer.countTotalWords(emptyText) == 0);
-    assert(analyzer.countUniqueWords(emptyText) == 0);
-    assert(isAlmostEqual(analyzer.calculateTTR(emptyText), 0.0));
+    assert(analyzer.countTotalWords(punctuationOnlyText) == 0);
+    assert(analyzer.countUniqueWords(punctuationOnlyText) == 0);
+    assert(isAlmostEqual(analyzer.calculateTTR(punctuationOnlyText), 0.0));
+
+    // 2. Тест для абсолютно порожнього вектора токенів
+    Text completelyEmptyText;
+
+    assert(analyzer.countTotalWords(completelyEmptyText) == 0);
+    assert(analyzer.countUniqueWords(completelyEmptyText) == 0);
+    assert(isAlmostEqual(analyzer.calculateTTR(completelyEmptyText), 0.0));
 
     std::cout << "[PASS] testEmptyOrPunctuationOnlyText\n";
 }
