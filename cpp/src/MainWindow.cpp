@@ -155,10 +155,10 @@ namespace {
 
         if (self) {
             try {
-            return static_cast<LRESULT>(self->handleMessage(
-                static_cast<unsigned int>(uMsg),
-                static_cast<unsigned long long>(wParam),
-                static_cast<long long>(lParam)));
+                return static_cast<LRESULT>(self->handleMessage(
+                    static_cast<unsigned int>(uMsg),
+                    static_cast<unsigned long long>(wParam),
+                    static_cast<long long>(lParam)));
             } catch (const std::exception& error) {
                 MessageBoxW(hwnd, utf8ToWide(error.what()).c_str(), L"Processing error", MB_OK | MB_ICONERROR);
                 return 0;
@@ -231,10 +231,28 @@ bool MainWindow::create(const std::string& title, int width, int height) {
         RegisterClassExA(&wc);
     }
 
-    int screenW = GetSystemMetrics(SM_CXSCREEN);
-    int screenH = GetSystemMetrics(SM_CYSCREEN);
-    int posX = (screenW > width) ? (screenW - width) / 2 : 20;
-    int posY = (screenH > height) ? (screenH - height) / 2 : 20;
+    // Clamp window size to the usable desktop work area (excluding taskbar)
+    RECT workArea = {};
+    int workLeft = 0;
+    int workTop = 0;
+    int workW = GetSystemMetrics(SM_CXSCREEN);
+    int workH = GetSystemMetrics(SM_CYSCREEN);
+    if (SystemParametersInfoA(SPI_GETWORKAREA, 0, &workArea, 0)) {
+        workLeft = workArea.left;
+        workTop = workArea.top;
+        workW = workArea.right - workArea.left;
+        workH = workArea.bottom - workArea.top;
+    }
+
+    if (workW > 400 && width > workW - 16) {
+        width = workW - 16;
+    }
+    if (workH > 400 && height > workH - 16) {
+        height = workH - 16;
+    }
+
+    int posX = workLeft + std::max(0, (workW - width) / 2);
+    int posY = workTop + std::max(0, (workH - height) / 2);
 
     HWND createdHwnd = CreateWindowExA(
         0,
@@ -254,6 +272,11 @@ bool MainWindow::create(const std::string& title, int width, int height) {
 
     hWnd = createdHwnd;
     initialized = true;
+
+    RECT clientRect = {};
+    GetClientRect(createdHwnd, &clientRect);
+    layoutDynamicControls(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+
     syncControlsFromConfig();
     runFullPipeline();
     return true;
@@ -319,12 +342,12 @@ void MainWindow::createControls(void* parentPtr) {
     HINSTANCE inst = static_cast<HINSTANCE>(hInstance);
 
     HFONT regularFont = CreateFontA(
-        -14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        -13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, "Segoe UI"
     );
     HFONT boldFont = CreateFontA(
-        -14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+        -13, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, "Segoe UI"
     );
@@ -338,80 +361,80 @@ void MainWindow::createControls(void* parentPtr) {
         }
     };
 
-    // --- Section 1: Input Text Document (Top-Left) ---
-    HWND hGroupInput = CreateWindowExA(
-        0, "BUTTON", "Input Text (One Document)",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 10, 535, 212, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupInput, true);
+    auto createGroup = [&](const char* title, int x, int y, int w, int h) -> HWND {
+        HWND group = CreateWindowExA(0, "BUTTON", title,
+            WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+            x, y, w, h, parent, nullptr, inst, nullptr);
+        applyFont(group, true);
+        return group;
+    };
+
+    auto createCheck = [&](const char* title, int id, int x, int y, int w) -> HWND {
+        HWND check = CreateWindowExA(0, "BUTTON", title,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
+            x, y, w, 18, parent,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), inst, nullptr);
+        applyFont(check);
+        return check;
+    };
+
+    // --- Top-Left: Input Text Document (y = 6..158) ---
+    createGroup("Input Text (One Document)", 10, 6, 490, 152);
 
     HWND inputEdit = CreateWindowExW(
         WS_EX_CLIENTEDGE, L"EDIT", L"",
         WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN,
-        28, 34, 510, 100,
+        20, 24, 470, 68,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_INPUT_EDIT)), inst, nullptr
     );
     applyFont(inputEdit);
     hInputEdit = inputEdit;
     SendMessageW(inputEdit, EM_SETLIMITTEXT, 0x7FFFFFFE, 0);
+
     HWND encodingLabel = CreateWindowExA(0, "STATIC", "Encoding:", WS_CHILD | WS_VISIBLE,
-        28, 146, 70, 22, parent, nullptr, inst, nullptr);
+        20, 100, 62, 18, parent, nullptr, inst, nullptr);
     applyFont(encodingLabel);
+
     HWND encodingCombo = CreateWindowExA(0, "COMBOBOX", "",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
-        100, 142, 438, 150, parent,
+        84, 97, 406, 130, parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_ENCODING_COMBO)), inst, nullptr);
     applyFont(encodingCombo);
     hEncodingCombo = encodingCombo;
     for (const char* name : {"UTF-8", "UTF-16 LE", "UTF-16 BE", "Windows-1251"})
         SendMessageA(encodingCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+
     HWND openFileButton = CreateWindowExA(0, "BUTTON", "Open File",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-        28, 180, 155, 30, parent,
+        20, 126, 142, 24, parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_OPEN_FILE)), inst, nullptr);
     applyFont(openFileButton);
 
     HWND hBtnSample = CreateWindowExA(
         0, "BUTTON", "Load Sample Corpus",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        193, 180, 185, 30,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        170, 126, 176, 24,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_LOAD_SAMPLE)), inst, nullptr
     );
     applyFont(hBtnSample);
 
     HWND hBtnClear = CreateWindowExA(
         0, "BUTTON", "Clear Text",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        388, 180, 150, 30,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        354, 126, 136, 24,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_CLEAR_TEXT)), inst, nullptr
     );
     applyFont(hBtnClear);
 
-    // Settings follow the pipeline: preprocessing -> tokenization -> normalization -> morphology.
-    auto createGroup = [&](const char* title, int x, int y, int width, int height) {
-        HWND group = CreateWindowExA(0, "BUTTON", title,
-            WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-            x, y, width, height, parent, nullptr, inst, nullptr);
-        applyFont(group, true);
-    };
-    auto createCheck = [&](const char* title, int id, int x, int y, int width) -> HWND {
-        HWND check = CreateWindowExA(0, "BUTTON", title,
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
-            x, y, width, 22, parent,
-            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), inst, nullptr);
-        applyFont(check);
-        return check;
-    };
-
-    createGroup("1. Text Preprocessing", 564, 10, 484, 116);
-    hLowercaseCheck = createCheck("Unicode lowercase", IDC_CHK_LOWERCASE, 580, 34, 210);
-    hTrimSpaceCheck = createCheck("Trim text edges", IDC_CHK_TRIM_SPACE, 800, 34, 230);
-    hNormalizeSpaceCheck = createCheck("Collapse extra spaces and tabs", IDC_CHK_NORM_SPACE, 580, 58, 440);
+    // --- Top-Right 1: Text Preprocessing (y = 6..92) ---
+    createGroup("1. Text Preprocessing", 508, 6, 482, 86);
+    hLowercaseCheck = createCheck("Unicode lowercase", IDC_CHK_LOWERCASE, 520, 22, 185);
+    hTrimSpaceCheck = createCheck("Trim text edges", IDC_CHK_TRIM_SPACE, 715, 22, 200);
+    hNormalizeSpaceCheck = createCheck("Collapse extra spaces and tabs", IDC_CHK_NORM_SPACE, 520, 42, 450);
 
     HWND newlineCombo = CreateWindowExA(
         0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
-        580, 86, 452, 140, parent,
+        520, 63, 458, 120, parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_NEWLINE_COMBO)), inst, nullptr);
     applyFont(newlineCombo);
     hNewlineCombo = newlineCombo;
@@ -419,10 +442,11 @@ void MainWindow::createControls(void* parentPtr) {
     SendMessageA(newlineCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Newlines: normalize to LF"));
     SendMessageA(newlineCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Newlines: replace with spaces"));
 
-    createGroup("2. Tokenization", 564, 132, 484, 90);
+    // --- Top-Right 2: Tokenization (y = 96..158) ---
+    createGroup("2. Tokenization", 508, 96, 482, 62);
     HWND strategyCombo = CreateWindowExA(
         0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
-        580, 156, 452, 140, parent,
+        520, 112, 458, 120, parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_STRATEGY_COMBO)), inst, nullptr);
     applyFont(strategyCombo);
     hStrategyCombo = strategyCombo;
@@ -430,89 +454,76 @@ void MainWindow::createControls(void* parentPtr) {
     SendMessageA(strategyCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Word/Punctuation (Split words & symbols)"));
     SendMessageA(strategyCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Rule-Based (Keep URLs, emails, #tags, C++)"));
     hPreserveMultiPunctCheck = createCheck("Group punctuation sequences (... / ?!)",
-        IDC_CHK_MULTI_PUNCT, 580, 190, 450);
+        IDC_CHK_MULTI_PUNCT, 520, 137, 458);
 
-    createGroup("3. Token Normalization", 16, 228, 1032, 126);
+    // --- Row 2: Token Normalization & Morphology (y = 162..254) ---
+    createGroup("3. Token Normalization && Morphology", 10, 162, 980, 92);
     hRemovePunctCheck = createCheck("Remove punctuation after tokenization",
-        IDC_CHK_REMOVE_PUNCT, 28, 254, 476);
+        IDC_CHK_REMOVE_PUNCT, 20, 180, 262);
+    hReplaceNumberCheck = createCheck("Numbers -> <NUM>", IDC_CHK_REPLACE_NUM, 290, 180, 185);
+    hReplaceUrlCheck = createCheck("URLs -> <URL>", IDC_CHK_REPLACE_URL, 20, 202, 150);
+    hReplaceEmailCheck = createCheck("Emails -> <EMAIL>", IDC_CHK_REPLACE_EMAIL, 180, 202, 170);
+    hMorphologyCheck = createCheck("English stemming (learning -> learn, models -> model)",
+        IDC_CHK_MORPHOLOGY, 20, 226, 465);
 
-    hReplaceNumberCheck = createCheck("Numbers -> <NUM>", IDC_CHK_REPLACE_NUM, 28, 278, 220);
-    hReplaceUrlCheck = createCheck("URLs -> <URL>", IDC_CHK_REPLACE_URL, 260, 278, 240);
-    hReplaceEmailCheck = createCheck("Emails -> <EMAIL>", IDC_CHK_REPLACE_EMAIL, 28, 306, 240);
     HWND unicodeCombo = CreateWindowExA(0, "COMBOBOX", "",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
-        540, 252, 496, 140, parent,
+        502, 178, 476, 120, parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_UNICODE_COMBO)), inst, nullptr);
     applyFont(unicodeCombo);
     hUnicodeCombo = unicodeCombo;
     SendMessageA(unicodeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Unicode: keep original"));
     SendMessageA(unicodeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Unicode: NFC"));
     SendMessageA(unicodeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Unicode: NFKC"));
-    hStopWordsCheck = createCheck("Remove stop words", IDC_CHK_STOP_WORDS, 540, 280, 230);
-    hStopCaseCheck = createCheck("Case-sensitive stop words", IDC_CHK_STOP_CASE, 780, 280, 256);
+
+    hStopWordsCheck = createCheck("Remove stop words", IDC_CHK_STOP_WORDS, 502, 203, 176);
+    hStopCaseCheck = createCheck("Case-sensitive stop words", IDC_CHK_STOP_CASE, 688, 203, 230);
     HWND stopLabel = CreateWindowExA(0, "STATIC", "Stop words:", WS_CHILD | WS_VISIBLE,
-        540, 312, 90, 22, parent, nullptr, inst, nullptr);
+        502, 227, 74, 18, parent, nullptr, inst, nullptr);
     applyFont(stopLabel);
     HWND stopEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 634, 308, 402, 26, parent,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 578, 224, 400, 22, parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_STOP_WORDS_EDIT)), inst, nullptr);
     applyFont(stopEdit);
     hStopWordsEdit = stopEdit;
 
-    createGroup("4. Morphology (Optional)", 16, 360, 1032, 56);
-    hMorphologyCheck = createCheck("English stemming (learning -> learn, models -> model)",
-        IDC_CHK_MORPHOLOGY, 28, 384, 990);
-    // --- Section 3: Vocabulary & Sequence Alignment Parameters ---
-    HWND hGroupParams = CreateWindowExA(
-        0, "BUTTON", "5. Vocabulary Filtering && Sequence Alignment Parameters",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 422, 1032, 64, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupParams, true);
+    // --- Row 3: Vocabulary & Sequence Alignment Parameters (y = 258..304) ---
+    createGroup("4. Vocabulary Filtering && Sequence Alignment Parameters", 10, 258, 980, 46);
 
-    HWND hLblMinFreq = CreateWindowExA(
-        0, "STATIC", "Min Word Freq (minFrequency):",
-        WS_CHILD | WS_VISIBLE,
-        28, 448, 195, 22, parent, nullptr, inst, nullptr
-    );
+    HWND hLblMinFreq = CreateWindowExA(0, "STATIC", "Min Word Freq:",
+        WS_CHILD | WS_VISIBLE, 20, 276, 100, 18, parent, nullptr, inst, nullptr);
     applyFont(hLblMinFreq);
 
     HWND minFreqEdit = CreateWindowExA(
         WS_EX_CLIENTEDGE, "EDIT", "1",
-        WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL,
-        226, 444, 58, 26,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_NUMBER | ES_AUTOHSCROLL,
+        122, 273, 56, 22,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_EDIT_MIN_FREQ)), inst, nullptr
     );
     applyFont(minFreqEdit);
     hMinFreqEdit = minFreqEdit;
 
-    HWND hLblMaxVocab = CreateWindowExA(
-        0, "STATIC", "Vocab Limit (0 = unlimited):",
-        WS_CHILD | WS_VISIBLE,
-        304, 448, 178, 22, parent, nullptr, inst, nullptr
-    );
+    HWND hLblMaxVocab = CreateWindowExA(0, "STATIC", "Vocab Limit (0=all):",
+        WS_CHILD | WS_VISIBLE, 194, 276, 128, 18, parent, nullptr, inst, nullptr);
     applyFont(hLblMaxVocab);
 
     HWND maxVocabEdit = CreateWindowExA(
         WS_EX_CLIENTEDGE, "EDIT", "0",
-        WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL,
-        484, 444, 62, 26,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_NUMBER | ES_AUTOHSCROLL,
+        324, 273, 60, 22,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_EDIT_MAX_VOCAB)), inst, nullptr
     );
     applyFont(maxVocabEdit);
     hMaxVocabEdit = maxVocabEdit;
 
-    HWND hLblMaxLength = CreateWindowExA(
-        0, "STATIC", "Fixed Seq Length (0 = auto):",
-        WS_CHILD | WS_VISIBLE,
-        566, 448, 180, 22, parent, nullptr, inst, nullptr
-    );
+    HWND hLblMaxLength = CreateWindowExA(0, "STATIC", "Fixed Seq Length (0=auto):",
+        WS_CHILD | WS_VISIBLE, 400, 276, 162, 18, parent, nullptr, inst, nullptr);
     applyFont(hLblMaxLength);
 
     HWND maxLengthEdit = CreateWindowExA(
         WS_EX_CLIENTEDGE, "EDIT", "0",
-        WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_AUTOHSCROLL,
-        748, 444, 62, 26,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_NUMBER | ES_AUTOHSCROLL,
+        564, 273, 60, 22,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_EDIT_MAX_LENGTH)), inst, nullptr
     );
     applyFont(maxLengthEdit);
@@ -520,89 +531,73 @@ void MainWindow::createControls(void* parentPtr) {
 
     HWND hBtnResetParams = CreateWindowExA(
         0, "BUTTON", "Reset Defaults",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        830, 442, 202, 30,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        818, 272, 160, 24,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_RESET_PARAMS)), inst, nullptr
     );
     applyFont(hBtnResetParams);
 
-    // --- Section 4: Pipeline Step-by-Step Controls & CSV Export ---
-    HWND hGroupActions = CreateWindowExA(
-        0, "BUTTON", "6. Pipeline Execution Steps && CSV Export (Click Step-by-Step or Run Full Pipeline)",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 492, 1032, 66, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupActions, true);
+    // --- Row 4: Pipeline Step-by-Step Controls & CSV Export (y = 308..356) ---
+    createGroup("5. Pipeline Execution Steps && CSV Export (Click Step-by-Step or Run Full Pipeline)", 10, 308, 980, 48);
 
     HWND hBtnTokenize = CreateWindowExA(
         0, "BUTTON", "1. Tokenize Text",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        28, 516, 175, 32,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        20, 324, 172, 25,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_STEP_TOKENIZE)), inst, nullptr
     );
     applyFont(hBtnTokenize, true);
 
     HWND hBtnVocab = CreateWindowExA(
         0, "BUTTON", "2. Build Vocabulary",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        215, 516, 185, 32,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        200, 324, 176, 25,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_STEP_VOCAB)), inst, nullptr
     );
     applyFont(hBtnVocab, true);
 
     HWND hBtnEncode = CreateWindowExA(
         0, "BUTTON", "3. Encode && Analyze",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        412, 516, 190, 32,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        384, 324, 178, 25,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_STEP_ENCODE)), inst, nullptr
     );
     applyFont(hBtnEncode, true);
 
     HWND hBtnRunAll = CreateWindowExA(
         0, "BUTTON", "Run Full Pipeline (1-3)",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        614, 516, 205, 32,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        570, 324, 206, 25,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_RUN_PIPELINE)), inst, nullptr
     );
     applyFont(hBtnRunAll, true);
 
     HWND hBtnExportCsv = CreateWindowExA(
         0, "BUTTON", "4. Export CSV Files",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        831, 516, 201, 32,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        784, 324, 194, 25,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_EXPORT_CSV)), inst, nullptr
     );
     applyFont(hBtnExportCsv, true);
 
-    // --- Section 5: Extracted Tokens Table (Bottom-Left) ---
-    HWND hGroupTokens = CreateWindowExA(
-        0, "BUTTON", "7. Extracted Tokens && Vocabulary Mapping",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 564, 500, 256, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupTokens, true);
+    // --- Row 5: Extracted Tokens & Statistics Tables (dynamically sized via WM_SIZE) ---
+    hGroupTokens = createGroup("6. Extracted Tokens && Vocabulary Mapping", 10, 360, 470, 232);
 
     HWND tokensTable = CreateWindowExW(
         WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
         WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SINGLESEL,
-        28, 588, 476, 220,
+        20, 378, 450, 206,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_LIST_TOKENS)), inst, nullptr
     );
     applyFont(tokensTable);
     hTokensTable = tokensTable;
 
-    // --- Section 6: Corpus & Vectorization Statistics Table (Bottom-Right) ---
-    HWND hGroupStats = CreateWindowExA(
-        0, "BUTTON", "8. Corpus && Vectorization Summary (With Plain-Language Guide)",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        528, 564, 520, 256, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupStats, true);
+    hGroupStats = createGroup("7. Corpus && Vectorization Summary (With Plain-Language Guide)", 490, 360, 500, 232);
 
     HWND statsTable = CreateWindowExW(
         WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
         WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SINGLESEL,
-        540, 588, 496, 220,
+        500, 378, 480, 206,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_LIST_STATS)), inst, nullptr
     );
     applyFont(statsTable);
@@ -610,32 +605,65 @@ void MainWindow::createControls(void* parentPtr) {
 
     initTableColumns();
 
-    // --- Section 7: Live Status Banner & Footer ---
-    HWND hGroupSummary = CreateWindowExA(
-        0, "BUTTON", "9. Pipeline Status && Active Configuration",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-        16, 826, 1032, 68, parent, nullptr, inst, nullptr
-    );
-    applyFont(hGroupSummary, true);
+    // --- Row 6: Live Status Banner & Footer (anchored to bottom via WM_SIZE) ---
+    hGroupSummary = createGroup("8. Pipeline Status && Active Configuration", 10, 598, 980, 52);
 
     HWND summaryStatic = CreateWindowExA(
         0, "STATIC", "",
-        WS_CHILD | WS_VISIBLE,
-        28, 846, 785, 40,
+        WS_CHILD | WS_VISIBLE | SS_NOPREFIX,
+        20, 614, 766, 30,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_SUMMARY_STATIC)), inst, nullptr
     );
     applyFont(summaryStatic);
     hSummaryStatic = summaryStatic;
 
-    HWND hBtnApply = CreateWindowExA(
+    HWND applyButton = CreateWindowExA(
         0, "BUTTON", "Apply Configuration && Close",
-        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        824, 846, 210, 36,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
+        794, 613, 186, 28,
         parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDC_BTN_APPLY_CLOSE)), inst, nullptr
     );
-    applyFont(hBtnApply, true);
+    applyFont(applyButton, true);
+    hBtnApply = applyButton;
 #else
     (void)parentPtr;
+#endif
+}
+
+void MainWindow::layoutDynamicControls(int clientWidth, int clientHeight) {
+#ifdef _WIN32
+    if (!hWnd || !hGroupTokens || !hTokensTable || !hGroupStats || !hStatsTable ||
+        !hGroupSummary || !hSummaryStatic || !hBtnApply) {
+        return;
+    }
+
+    const int margin = 10;
+    const int gap = 10;
+    const int contentW = std::max(980, clientWidth - 2 * margin);
+    const int footerH = 58;
+    const int tablesTop = 360;
+    const int footerY = std::max(tablesTop + 100, clientHeight - footerH - 8);
+    const int tablesH = std::max(94, footerY - tablesTop - 6);
+
+    const int leftW = (contentW - gap) * 48 / 100;
+    const int rightW = contentW - gap - leftW;
+    const int rightX = margin + leftW + gap;
+
+    MoveWindow(static_cast<HWND>(hGroupTokens), margin, tablesTop, leftW, tablesH, FALSE);
+    MoveWindow(static_cast<HWND>(hTokensTable), margin + 10, tablesTop + 18, leftW - 20, tablesH - 26, FALSE);
+
+    MoveWindow(static_cast<HWND>(hGroupStats), rightX, tablesTop, rightW, tablesH, FALSE);
+    MoveWindow(static_cast<HWND>(hStatsTable), rightX + 10, tablesTop + 18, rightW - 20, tablesH - 26, FALSE);
+
+    const int applyW = 220;
+    MoveWindow(static_cast<HWND>(hGroupSummary), margin, footerY, contentW, footerH, FALSE);
+    MoveWindow(static_cast<HWND>(hSummaryStatic), margin + 10, footerY + 16, contentW - applyW - 28, 34, FALSE);
+    MoveWindow(static_cast<HWND>(hBtnApply), margin + contentW - applyW - 10, footerY + 18, applyW, 28, FALSE);
+    RedrawWindow(static_cast<HWND>(hWnd), nullptr, nullptr,
+                 RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
+#else
+    (void)clientWidth;
+    (void)clientHeight;
 #endif
 }
 
@@ -646,12 +674,12 @@ void MainWindow::initTableColumns() {
         DWORD exStyle = LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_DOUBLEBUFFER;
         SendMessageA(tokensList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, static_cast<LPARAM>(exStyle));
 
-        insertListViewColumn(tokensList, 0, "#", 38);
-        insertListViewColumn(tokensList, 1, "Sent", 44);
-        insertListViewColumn(tokensList, 2, "Token Text", 132);
-        insertListViewColumn(tokensList, 3, "Category", 92);
-        insertListViewColumn(tokensList, 4, "Vocab ID", 95);
-        insertListViewColumn(tokensList, 5, "Freq", 55);
+        insertListViewColumn(tokensList, 0, "#", 34);
+        insertListViewColumn(tokensList, 1, "Sent", 40);
+        insertListViewColumn(tokensList, 2, "Token Text", 128);
+        insertListViewColumn(tokensList, 3, "Category", 88);
+        insertListViewColumn(tokensList, 4, "Vocab ID", 92);
+        insertListViewColumn(tokensList, 5, "Freq", 48);
     }
 
     HWND statsList = static_cast<HWND>(hStatsTable);
@@ -659,9 +687,9 @@ void MainWindow::initTableColumns() {
         DWORD exStyle = LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_DOUBLEBUFFER;
         SendMessageA(statsList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, static_cast<LPARAM>(exStyle));
 
-        insertListViewColumn(statsList, 0, "Metric", 175);
-        insertListViewColumn(statsList, 1, "Value", 105);
-        insertListViewColumn(statsList, 2, "Meaning / Explanation", 198);
+        insertListViewColumn(statsList, 0, "Metric", 160);
+        insertListViewColumn(statsList, 1, "Value", 94);
+        insertListViewColumn(statsList, 2, "Meaning / Explanation", 206);
     }
 #endif
 }
@@ -675,8 +703,23 @@ long long MainWindow::handleMessage(unsigned int uMsg, unsigned long long wParam
             createControls(nativeWnd);
             return 0;
 
+        case WM_GETMINMAXINFO: {
+            MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
+            if (mmi) {
+                mmi->ptMinTrackSize.x = 1016;
+                mmi->ptMinTrackSize.y = 540;
+            }
+            return 0;
+        }
+
+        case WM_SIZE:
+            if (wParam != SIZE_MINIMIZED) {
+                layoutDynamicControls(LOWORD(lParam), HIWORD(lParam));
+            }
+            return 0;
+
         case WM_COMMAND: {
-            if (syncingControls) return 0;
+            if (syncingControls || !initialized) return 0;
             int id = LOWORD(wParam);
             int code = HIWORD(wParam);
 
@@ -928,6 +971,7 @@ std::vector<Token> MainWindow::previewTokenizeText(const std::string& rawText) c
     pipeline.preserveMultiCharPunctuation = config.preserveMultiCharPunctuation;
     return Application(pipeline).tokenizeText(rawText);
 }
+
 void MainWindow::computeBowAndTfIdfVectors() {
     size_t vocabSz = currentVocab.size();
     auto& docs = currentDataset.getDocuments();
@@ -1147,7 +1191,7 @@ bool MainWindow::exportToCsv(const std::string& outputDir, bool showPopup) {
             }
         }
 
-// 5. Export statistics.csv
+        // 5. Export statistics.csv
         {
             std::ofstream out(statsPath);
             if (!out.is_open()) return false;

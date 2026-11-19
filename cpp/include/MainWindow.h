@@ -90,14 +90,14 @@ public:
     static constexpr int IDC_CHK_TRIM_SPACE      = 124;
     static constexpr int IDC_NEWLINE_COMBO       = 125;
     static constexpr int IDC_UNICODE_COMBO       = 126;
-    static constexpr int IDC_CHK_REPLACE_NUM      = 127;
-    static constexpr int IDC_CHK_REPLACE_URL      = 128;
-    static constexpr int IDC_CHK_REPLACE_EMAIL    = 129;
-    static constexpr int IDC_CHK_STOP_WORDS       = 130;
-    static constexpr int IDC_CHK_STOP_CASE        = 131;
-    static constexpr int IDC_STOP_WORDS_EDIT      = 132;
-    static constexpr int IDC_ENCODING_COMBO       = 133;
-    static constexpr int IDC_BTN_OPEN_FILE        = 134;
+    static constexpr int IDC_CHK_REPLACE_NUM     = 127;
+    static constexpr int IDC_CHK_REPLACE_URL     = 128;
+    static constexpr int IDC_CHK_REPLACE_EMAIL   = 129;
+    static constexpr int IDC_CHK_STOP_WORDS      = 130;
+    static constexpr int IDC_CHK_STOP_CASE       = 131;
+    static constexpr int IDC_STOP_WORDS_EDIT     = 132;
+    static constexpr int IDC_ENCODING_COMBO      = 133;
+    static constexpr int IDC_BTN_OPEN_FILE       = 134;
 
 private:
     GuiConfig config;
@@ -143,10 +143,16 @@ private:
     void* hMaxVocabEdit = nullptr;
     void* hMaxLengthEdit = nullptr;
 
+    void* hGroupTokens = nullptr;
+    void* hGroupStats = nullptr;
+    void* hGroupSummary = nullptr;
+    void* hBtnApply = nullptr;
+
     void* hTokensTable = nullptr;
     void* hStatsTable = nullptr;
 
     void createControls(void* parent);
+    void layoutDynamicControls(int clientWidth, int clientHeight);
     void initTableColumns();
     std::vector<Token> previewTokenizeText(const std::string& rawText) const;
     void computeBowAndTfIdfVectors();
@@ -156,12 +162,12 @@ public:
     ~MainWindow();
 
     bool create(const std::string& title = "NLP Text Tokenizer & Vectorizer Studio",
-                int width = 1080,
-                int height = 944);
+                int width = 1016,
+                int height = 700);
     int runMessageLoop();
     int showAndRun(const std::string& title = "NLP Text Tokenizer & Vectorizer Studio",
-                   int width = 1080,
-                   int height = 944);
+                   int width = 1016,
+                   int height = 700);
 
     // Synchronization between UI controls and GuiConfig
     void syncControlsFromConfig();
