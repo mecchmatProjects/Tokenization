@@ -1,0 +1,38 @@
+#ifndef TEXT_DOCUMENT_H
+#define TEXT_DOCUMENT_H
+
+#include <string>
+#include <vector>
+#include "sentence.h"
+
+class TextDocument {
+private:
+    // Metadata
+    std::string title;
+    std::string author;
+    int year;
+    std::string language;
+    std::string content;
+
+    // Content
+    std::vector<Sentence> sentences;
+
+public:
+    // Constructor
+    TextDocument(const std::string& docTitle, const std::string& docAuthor, 
+                 int docYear, const std::string& docLanguage, const std::string& docContent);
+
+    // Metadata getters
+    std::string getTitle() const;
+    std::string getAuthor() const;
+    int getYear() const;
+    std::string getLanguage() const;
+    std::string getContent() const;
+
+    // Content managment
+    void addSentence(const Sentence& sentence);
+
+    const std::vector<Sentence>& getSentences() const;
+};
+
+#endif
