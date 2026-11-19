@@ -3,6 +3,7 @@
 #include <string>
 #include <functional>
 #include "Document.h"
+#include "preprocessing/TextLoader.h"
 
 class Vocabulary;
 class Encoder;
@@ -31,12 +32,14 @@ public:
     // File and directory loading (Batch I/O)
     bool loadDocumentFromFile(const std::string& filePath,
                               bool autoTokenize = true,
-                              TokenizerFunc customTokenizer = nullptr);
+                              TokenizerFunc customTokenizer = nullptr,
+                              TextEncoding encoding = TextEncoding::Utf8);
 
     size_t loadFromDirectory(const std::string& directoryPath,
                              const std::string& extension = ".txt",
                              bool autoTokenize = true,
-                             TokenizerFunc customTokenizer = nullptr);
+                             TokenizerFunc customTokenizer = nullptr,
+                             TextEncoding encoding = TextEncoding::Utf8);
 
     // Tokenization helpers
     static std::vector<Token> defaultTokenize(const std::string& rawText, bool lowercase = true);

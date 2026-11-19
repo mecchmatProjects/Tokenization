@@ -230,16 +230,17 @@ PipelineResult Application::runOnDataset(const Dataset& inputDataset) {
 }
 
 PipelineResult Application::runOnDirectory(const std::string& directoryPath, const std::string& extension) {
-    dataset.clear();
-    dataset.loadFromDirectory(
+    Dataset loaded;
+    loaded.loadFromDirectory(
         directoryPath,
         extension,
         true,
         [this](const std::string& text) {
             return this->tokenizeText(text);
-        }
+        },
+        config.textEncoding
     );
-
+    dataset = std::move(loaded);
     return executeVectorizationAndAnalytics();
 }
 

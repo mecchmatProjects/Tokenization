@@ -29,7 +29,7 @@ target_include_directories(tokenizer PRIVATE cpp cpp/include)
 target_link_libraries(tokenizer PRIVATE tokenization preprocessing normalization)
 
 if(WIN32)
-    target_link_libraries(tokenizer PRIVATE user32 gdi32 comctl32)
+    target_link_libraries(tokenizer PRIVATE user32 gdi32 comctl32 ole32 uuid)
 endif()
 
 if(MSVC)
@@ -37,6 +37,21 @@ if(MSVC)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(text_loading_tests
+        cpp/preprocessing/tests/TextLoadingTests.cpp
+        cpp/src/MainWindow.cpp
+        ${TOKENIZER_CORE_SOURCES}
+    )
+    target_include_directories(text_loading_tests PRIVATE cpp cpp/include)
+    target_link_libraries(text_loading_tests PRIVATE tokenization preprocessing normalization)
+    if(WIN32)
+        target_link_libraries(text_loading_tests PRIVATE user32 gdi32 comctl32 ole32 uuid)
+    endif()
+    if(MSVC)
+        target_compile_options(text_loading_tests PRIVATE /utf-8)
+    endif()
+    add_test(NAME text_loading_tests COMMAND text_loading_tests)
+
     add_executable(application_preprocessing_tests
         cpp/preprocessing/tests/ApplicationPreprocessingTests.cpp
         cpp/src/MainWindow.cpp
@@ -45,7 +60,7 @@ if(BUILD_TESTING)
     target_include_directories(application_preprocessing_tests PRIVATE cpp cpp/include)
     target_link_libraries(application_preprocessing_tests PRIVATE tokenization preprocessing normalization)
     if(WIN32)
-        target_link_libraries(application_preprocessing_tests PRIVATE user32 gdi32 comctl32)
+        target_link_libraries(application_preprocessing_tests PRIVATE user32 gdi32 comctl32 ole32 uuid)
     endif()
     if(MSVC)
         target_compile_options(application_preprocessing_tests PRIVATE /utf-8)

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <stdexcept>
 
 namespace fs = std::filesystem;
 
@@ -111,19 +112,25 @@ void Dataset::tokenizeAll(TokenizerFunc customTokenizer, bool lowercase) {
 
 bool Dataset::loadDocumentFromFile(const std::string& filePath,
                                    bool autoTokenize,
-                                   TokenizerFunc customTokenizer) {
-    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+                                   TokenizerFunc customTokenizer,
+                                   TextEncoding encoding) {
+    std::ifstream file(fs::u8path(filePath), std::ios::in | std::ios::binary);
     if (!file.is_open()) {
         return false;
     }
 
     std::ostringstream buffer;
     buffer << file.rdbuf();
+    if (file.bad()) throw std::runtime_error("Cannot read file: " + filePath);
 
     Document doc;
     doc.id = static_cast<int>(documents.size()) + 1;
     doc.filePath = filePath;
-    doc.rawText = buffer.str();
+    try {
+        doc.rawText = TextLoader::decode(buffer.str(), encoding);
+    } catch (const std::exception& error) {
+        throw std::runtime_error(filePath + ": " + error.what());
+    }
 
     if (autoTokenize) {
         if (customTokenizer) {
@@ -140,31 +147,25 @@ bool Dataset::loadDocumentFromFile(const std::string& filePath,
 size_t Dataset::loadFromDirectory(const std::string& directoryPath,
                                   const std::string& extension,
                                   bool autoTokenize,
-                                  TokenizerFunc customTokenizer) {
-    if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath)) {
+                                  TokenizerFunc customTokenizer,
+                                  TextEncoding encoding) {
+    const auto directory = fs::u8path(directoryPath);
+    if (!fs::exists(directory) || !fs::is_directory(directory)) {
         return 0;
     }
 
-    std::vector<fs::path> filePaths;
-    for (const auto& entry : fs::directory_iterator(directoryPath)) {
-        if (entry.is_regular_file()) {
-            if (extension.empty() || entry.path().extension().string() == extension) {
-                filePaths.push_back(entry.path());
-            }
-        }
+    const auto files = TextLoader::loadDirectory(directory, encoding, extension);
+    std::vector<Document> loaded;
+    for (const auto& file : files) {
+        Document doc;
+        doc.id = static_cast<int>(documents.size() + loaded.size()) + 1;
+        doc.filePath = file.filePath;
+        doc.rawText = file.text;
+        if (autoTokenize) doc.tokens = customTokenizer ? customTokenizer(doc.rawText) : defaultTokenize(doc.rawText, true);
+        loaded.push_back(std::move(doc));
     }
-
-    // Sort paths alphabetically for deterministic document numbering
-    std::sort(filePaths.begin(), filePaths.end());
-
-    size_t loadedCount = 0;
-    for (const auto& path : filePaths) {
-        if (loadDocumentFromFile(path.string(), autoTokenize, customTokenizer)) {
-            ++loadedCount;
-        }
-    }
-
-    return loadedCount;
+    documents.insert(documents.end(), loaded.begin(), loaded.end());
+    return loaded.size();
 }
 
 void Dataset::applyEncoder(const Encoder& encoder, const Vocabulary& vocab) {

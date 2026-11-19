@@ -15,7 +15,6 @@ std::vector<Token> RuleBasedTokenizer::tokenize(const std::string& text) const {
         }
         auto match = RuleDetection::matchFirst(context, index, rules);
         if (match.length == 0) {
-            // Unmatched symbols still produce a token and guarantee progress.
             match = {1, type};
         }
         const auto& last = characters[index + match.length - 1];
