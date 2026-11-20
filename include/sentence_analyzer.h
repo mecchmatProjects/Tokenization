@@ -5,7 +5,10 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-// #include "text.h"
+#include "token.h"
+
+// Якщо Text визначений в окремому файлі (наприклад, text.h), підключіть його замість цього рядка
+using Text = std::vector<Token>;
 
 class SentenceAnalyzer {
 public:
@@ -31,11 +34,8 @@ public:
     std::unordered_map<std::string, std::size_t> analyzePunctuationFrequency(const Text& text) const;
 
 private:
-    // Допоміжний метод: повертає вектор довжин (кількості слів) для кожного речення
+    // Допоміжний метод: групує слова за sentenceNumber і повертає вектор довжин кожного речення
     std::vector<std::size_t> extractSentenceLengths(const Text& text) const;
-
-    // Допоміжний метод: перевіряє, чи завершує токен речення
-    bool isSentenceEndingPunctuation(const std::string& tokenText) const;
 };
 
 #endif // SENTENCE_ANALYZER_H
