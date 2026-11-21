@@ -65,6 +65,34 @@ class TextLoaderTest {
     }
 
     @Test
+    void readsMetadataHeader() throws IOException {
+        Path file = tempDir.resolve("novel.txt");
+        Files.writeString(file, "#title: Тіні\n#author: Автор А\n#year: 1911\n#language: uk\nТекст твору.");
+
+        Document document = new TextLoader().loadFile(file);
+
+        assertEquals("Тіні", document.getTitle());
+        assertEquals("Автор А", document.getAuthor());
+        assertEquals(1911, document.getYear());
+        assertEquals("uk", document.getLanguage());
+        assertEquals("Текст твору.", document.getContent());
+    }
+
+    @Test
+    void usesFileAndFolderNamesWhenMetadataIsMissing() throws IOException {
+        Path authorDir = tempDir.resolve("author1");
+        Files.createDirectories(authorDir);
+        Files.writeString(authorDir.resolve("novel1.txt"), "#hashtag is not metadata");
+
+        List<Document> documents = new TextLoader().loadDirectory(tempDir);
+
+        assertEquals(1, documents.size());
+        assertEquals("novel1", documents.get(0).getTitle());
+        assertEquals("author1", documents.get(0).getAuthor());
+        assertEquals("#hashtag is not metadata", documents.get(0).getContent());
+    }
+
+    @Test
     void failsForMissingDirectory() {
         assertThrows(IOException.class, () -> new TextLoader().loadDirectory(tempDir.resolve("missing")));
     }

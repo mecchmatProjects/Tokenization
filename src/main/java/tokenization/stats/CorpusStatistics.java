@@ -2,7 +2,6 @@ package tokenization.stats;
 
 import tokenization.core.TokenType;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -61,17 +60,7 @@ public class CorpusStatistics {
 
     /** n найчастіших токенів, від найчастішого до найрідшого. */
     public List<Map.Entry<String, Integer>> topTokens(int n) {
-        List<Map.Entry<String, Integer>> entries = new ArrayList<>(tokenFrequencies.entrySet());
-        entries.sort((a, b) -> {
-            if (!a.getValue().equals(b.getValue())) {
-                return b.getValue() - a.getValue();
-            }
-            return a.getKey().compareTo(b.getKey());
-        });
-        if (entries.size() > n) {
-            return new ArrayList<>(entries.subList(0, n));
-        }
-        return entries;
+        return Frequencies.top(tokenFrequencies, n);
     }
 
     public String format(int topCount) {

@@ -26,7 +26,7 @@ public class StatisticsAnalyzer {
                 String text = token.getNormalizedText();
                 stats.tokens++;
                 totalLength += text.length();
-                stats.tokenFrequencies.put(text, stats.tokenFrequencies.getOrDefault(text, 0) + 1);
+                Frequencies.add(stats.tokenFrequencies, text);
                 stats.typeFrequencies.put(token.getType(), stats.typeFrequencies.getOrDefault(token.getType(), 0) + 1);
 
                 if (vocabulary != null && vocabulary.getId(text) == Vocabulary.UNK_ID) {
