@@ -19,34 +19,34 @@ add_library(litcritic
     src/text_loader.cpp
     src/token.cpp
     src/tokenizer.cpp
- "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+ "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_include_directories(litcritic PUBLIC include)
 
 # Tests
-add_executable(lexical_analyzer_tests tests/lexical_analyzer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(lexical_analyzer_tests tests/lexical_analyzer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(lexical_analyzer_tests PRIVATE litcritic)
 add_test(NAME LexicalAnalyzerTests COMMAND lexical_analyzer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(data_structures_tests tests/data_structures_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(data_structures_tests tests/data_structures_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(data_structures_tests PRIVATE litcritic)
 add_test(NAME data_structures_tests COMMAND data_structures_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(text_loader_tests tests/text_loader_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(text_loader_tests tests/text_loader_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(text_loader_tests PRIVATE litcritic)
 add_test(NAME text_loader_tests COMMAND text_loader_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(preprocessor_tests tests/preprocessor_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(preprocessor_tests tests/preprocessor_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(preprocessor_tests PRIVATE litcritic)
 add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(sentence_analyzer_tests tests/sentence_analyzer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(sentence_analyzer_tests tests/sentence_analyzer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(sentence_analyzer_tests PRIVATE litcritic)
 add_test(NAME sentence_analyzer_tests COMMAND sentence_analyzer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(tokenizer_tests tests/tokenizer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(tokenizer_tests tests/tokenizer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(tokenizer_tests PRIVATE litcritic)
 add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # Main application
-add_executable(litcritic_app main.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp")
+add_executable(litcritic_app main.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
 target_link_libraries(litcritic_app PRIVATE litcritic)
