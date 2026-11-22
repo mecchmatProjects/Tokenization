@@ -10,6 +10,7 @@ include(CTest)
 enable_testing()
 
 add_library(litcritic
+    src/lemmatizer.cpp
     src/lexical_analyzer.cpp
     src/preprocessor.cpp
     src/sentence.cpp
@@ -20,6 +21,7 @@ add_library(litcritic
     src/token.cpp
     src/tokenizer.cpp
 )
+
 target_include_directories(litcritic PUBLIC include)
 
 # Tests
@@ -46,6 +48,13 @@ add_test(NAME sentence_analyzer_tests COMMAND sentence_analyzer_tests WORKING_DI
 add_executable(tokenizer_tests tests/tokenizer_tests.cpp)
 target_link_libraries(tokenizer_tests PRIVATE litcritic)
 add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(lemmatizer_tests tests/lemmatizer_tests.cpp)
+target_link_libraries(lemmatizer_tests PRIVATE litcritic)
+
+add_test(NAME lemmatizer_tests COMMAND lemmatizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+
 
 # Main application
 add_executable(litcritic_app main.cpp)
