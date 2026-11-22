@@ -6,6 +6,13 @@
 #include "sentence.h"
 
 class TextDocument {
+    // Default constructor
+    TextDocument();
+
+    // Constructor with all metadata and content
+    //TextDocument(const std::string& docTitle, const std::string& docAuthor, 
+                // int docYear, const std::string& docLanguage, const std::string& docContent);
+
 private:
     // Metadata
     std::string title;
