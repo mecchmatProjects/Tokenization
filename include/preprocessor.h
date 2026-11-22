@@ -17,5 +17,6 @@ private:
     static std::string normalizeLineBreaks(const std::string& text);
     static std::string normalizeSpaces(const std::string& text);
     static std::string normalizeQuotesAndDashes(const std::string& text);
+    static std::string normalizeEllipsis(const std::string& text);
     static std::string stripPunctuation(const std::string& text);
 };
