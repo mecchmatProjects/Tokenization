@@ -8,6 +8,10 @@
 
 
 
+// Suppress C++17 deprecation warnings for codecvt_utf8
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 // Helper function to convert standerd UTF-8 to wide string
 std::wstring utf8_to_wstring(const std::string& str) {
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
@@ -21,6 +25,23 @@ std::string wstring_to_utf8(const std::wstring& wstr) {
     return converter.to_bytes(wstr);
 }
 
+#pragma clang diagnostic pop
+
+
+// Replace Unicode horizontal ellipsis (...) with three standart dots (...)
+std::string Preprocessor::normalizeEllipsis(const std::string& text) {
+    std::string result = text;
+    const std::string unicodeEllipsis = "\xE2\x80\xA6"; // UTF-8 encoding for '...'
+    const std::string asciiEllipsis = "...";
+
+    size_t pos = 0;
+    while ((pos = result.find(unicodeEllipsis, pos)) != std::string::npos) {
+        result.replace(pos, unicodeEllipsis.length(), asciiEllipsis);
+        pos += asciiEllipsis.length();
+    }
+    return result;
+}
+
 
 
 // Applies all preprocessing steps in the correct logical order
@@ -31,6 +52,7 @@ std::string Preprocessor::process(const std::string& rawText, bool removePunctua
     text = normalizeLineBreaks(text);
     text = normalizeSpaces(text);
     text = normalizeQuotesAndDashes(text);
+    text = normalizeEllipsis(text);
 
     if (toLowerCase) {
         text = convertToLowerCase(text);
@@ -40,9 +62,13 @@ std::string Preprocessor::process(const std::string& rawText, bool removePunctua
         text = stripPunctuation(text);
     }
 
-    // Trim leading and trailing spaces if any remain
-    if (!text.empty() && text.front() == ' ') text.erase(0, 1);
-    if (!text.empty() && text.back() == ' ') text.pop_back();
+    // Trim all leading and trailing spaces if any remain
+    while (!text.empty() && text.front() == ' ') {
+        text.erase(0, 1);
+    }
+    while (!text.empty() && text.back() == ' ') {
+        text.pop_back();
+    }
 
     return text;
 }
@@ -134,9 +160,8 @@ std::string Preprocessor::normalizeQuotesAndDashes(const std::string& text) {
 }
 
 
-// Converts English ASCII characters to lowercase
-// Note: Ukrainian UTF-8 lowercase conversion usually requires external libraries like ICU,
-// so this handles basic standard characters safely
+// Converts UTF-8 text (including Ukrainian Cyrillic and Latin) to lowercase
+// using wide characters and the active system locale
 std::string Preprocessor::convertToLowerCase(const std::string& text) {
     // Convert to wide string for safe multibyte character handling
     std::wstring wtext = utf8_to_wstring(text);
