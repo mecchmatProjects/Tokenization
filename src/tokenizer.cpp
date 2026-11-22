@@ -103,6 +103,10 @@ std::vector<Token> Tokenizer::tokenize(const std::string& text) {
         // Step 2: Handle ellipsis "..." as a single punctuation token
         if (c == '.' && i + 2 < text.length() && text[i + 1] == '.' && text[i + 2] == '.') {
             flushCurrentToken();
+            if (sentenceEnded) {
+                currentSentence++;
+                sentenceEnded = false;
+            }
             tokens.push_back(Token("...", "...", TokenType::PUNCTUATION, currentPosition++, currentSentence));
             sentenceEnded = true;
             i += 2; // Skip the next two dots

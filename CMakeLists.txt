@@ -46,8 +46,11 @@ add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_
 
 add_executable(lemmatizer_tests tests/lemmatizer_tests.cpp)
 target_link_libraries(lemmatizer_tests PRIVATE litcritic)
-
 add_test(NAME lemmatizer_tests COMMAND lemmatizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_pipeline tests/test_pipeline.cpp)
+target_link_libraries(test_pipeline PRIVATE litcritic)
+add_test(NAME PipelineTests COMMAND test_pipeline WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 
 
