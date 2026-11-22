@@ -18,7 +18,7 @@ void test_empty_lemmatizer() {
     assert(lemmatizer.lemmatizeWord("") == "");
     assert(lemmatizer.lemmatizeWord("будинок") == "будинок");
 
-    std::cout << "test_empty_lemetizer passed!\n";
+    std::cout << "test_empty_lemmatizer passed!\n";
 }
 
 
@@ -125,6 +125,29 @@ void test_load_dictionary_from_file() {
 }
 
 
+void test_english_and_rule_overwrite() {
+    Lemmatizer lemmatizer;
+
+    // Test English word forms and case insensitivity
+    lemmatizer.addRule("running", "run");
+    lemmatizer.addRule("Books", "Book");
+
+    assert(lemmatizer.lemmatizeWord("RUNNING") == "run");
+    assert(lemmatizer.lemmatizeWord("books") == "book");
+    assert(lemmatizer.lemmatizeWord("Unknown") == "unknown");
+
+    // Test overwriting an existing rule
+    lemmatizer.addRule("running", "running_updated");
+    assert(lemmatizer.getDictionarySize() == 2); // Size must remain the same
+    assert(lemmatizer.lemmatizeWord("running") == "running_updated");
+
+    std::cout << "test_english_and_rule_overwrite passed!\n";
+}
+
+
+
+
+
 int main() {
     // Set global locale to Ukrainian UTF-8 for case conversion tests
     std::setlocale(LC_ALL, "uk_UA.UTF-8");
@@ -136,6 +159,7 @@ int main() {
     test_lemmatize_single_token();
     test_lemmatize_tokens_vector();
     test_load_dictionary_from_file();
+    test_english_and_rule_overwrite();
 
     std::cout << "All Lemmatizer tests passed successfully!\n";
 }

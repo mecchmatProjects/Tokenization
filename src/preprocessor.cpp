@@ -156,9 +156,8 @@ std::string Preprocessor::normalizeQuotesAndDashes(const std::string& text) {
 }
 
 
-// Converts English ASCII characters to lowercase
-// Note: Ukrainian UTF-8 lowercase conversion usually requires external libraries like ICU,
-// so this handles basic standard characters safely
+// Converts UTF-8 text (including Ukrainian Cyrillic and Latin) to lowercase
+// using wide characters and the active system locale
 std::string Preprocessor::convertToLowerCase(const std::string& text) {
     // Convert to wide string for safe multibyte character handling
     std::wstring wtext = utf8_to_wstring(text);

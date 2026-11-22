@@ -1,5 +1,5 @@
 #include <iostream>
-#include <clocale> // Add for aetlocale
+#include <clocale> // Add for setlocale
 #include <vector>
 #include <string>
 #include <algorithm>
