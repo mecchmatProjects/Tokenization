@@ -10,6 +10,7 @@ include(CTest)
 enable_testing()
 
 add_library(litcritic
+    src/lemmatizer.cpp
     src/lexical_analyzer.cpp
     src/preprocessor.cpp
     src/sentence.cpp
@@ -39,13 +40,23 @@ add_executable(preprocessor_tests tests/preprocessor_tests.cpp "include/ngram_an
 target_link_libraries(preprocessor_tests PRIVATE litcritic)
 add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(sentence_analyzer_tests tests/sentence_analyzer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
+add_executable(sentence_analyzer_tests tests/sentence_analyzer_tests.cpp)
 target_link_libraries(sentence_analyzer_tests PRIVATE litcritic)
 add_test(NAME sentence_analyzer_tests COMMAND sentence_analyzer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_executable(tokenizer_tests tests/tokenizer_tests.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
+add_executable(tokenizer_tests tests/tokenizer_tests.cpp)
 target_link_libraries(tokenizer_tests PRIVATE litcritic)
 add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(lemmatizer_tests tests/lemmatizer_tests.cpp)
+target_link_libraries(lemmatizer_tests PRIVATE litcritic)
+add_test(NAME lemmatizer_tests COMMAND lemmatizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_pipeline tests/test_pipeline.cpp)
+target_link_libraries(test_pipeline PRIVATE litcritic)
+add_test(NAME PipelineTests COMMAND test_pipeline WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+
 
 # Main application
 add_executable(litcritic_app main.cpp "include/ngram_analyzer.h" "src/ngram_analyzer.cpp" "tests/ngram_analyzer_tests.cpp" "include/style_profiler.h" "src/style_profiler.cpp" "tests/style_profiler_tests.cpp")
