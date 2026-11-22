@@ -12,8 +12,8 @@ enable_testing()
 add_library(litcritic
     src/lemmatizer.cpp
     src/lexical_analyzer.cpp
-    src/ngram_analyzer.cpp
     src/preprocessor.cpp
+    src/report_generator.cpp
     src/sentence.cpp
     src/sentence_analyzer.cpp
     src/style_profile.cpp
@@ -44,4 +44,29 @@ target_link_libraries(preprocessor_tests PRIVATE litcritic)
 add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_executable(sentence_analyzer_tests tests/sentence_analyzer_tests.cpp)
-target_
+target_link_libraries(sentence_analyzer_tests PRIVATE litcritic)
+add_test(NAME sentence_analyzer_tests COMMAND sentence_analyzer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(tokenizer_tests tests/tokenizer_tests.cpp)
+target_link_libraries(tokenizer_tests PRIVATE litcritic)
+add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(lemmatizer_tests tests/lemmatizer_tests.cpp)
+target_link_libraries(lemmatizer_tests PRIVATE litcritic)
+add_test(NAME lemmatizer_tests COMMAND lemmatizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(text_comparator_tests tests/text_comparator_tests.cpp)
+target_link_libraries(text_comparator_tests PRIVATE litcritic)
+add_test(NAME text_comparator_tests COMMAND text_comparator_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(report_generator_tests tests/report_generator_tests.cpp)
+target_link_libraries(report_generator_tests PRIVATE litcritic)
+add_test(NAME report_generator_tests COMMAND report_generator_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_pipeline tests/test_pipeline.cpp)
+target_link_libraries(test_pipeline PRIVATE litcritic)
+add_test(NAME PipelineTests COMMAND test_pipeline WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# Main application
+add_executable(litcritic_app main.cpp)
+target_link_libraries(litcritic_app PRIVATE litcritic)
