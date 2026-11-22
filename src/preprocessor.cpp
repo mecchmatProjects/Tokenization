@@ -62,9 +62,13 @@ std::string Preprocessor::process(const std::string& rawText, bool removePunctua
         text = stripPunctuation(text);
     }
 
-    // Trim leading and trailing spaces if any remain
-    if (!text.empty() && text.front() == ' ') text.erase(0, 1);
-    if (!text.empty() && text.back() == ' ') text.pop_back();
+    // Trim all leading and trailing spaces if any remain
+    while (!text.empty() && text.front() == ' ') {
+        text.erase(0, 1);
+    }
+    while (!text.empty() && text.back() == ' ') {
+        text.pop_back();
+    }
 
     return text;
 }

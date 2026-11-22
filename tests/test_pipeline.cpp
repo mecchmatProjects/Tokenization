@@ -123,6 +123,32 @@ void testLargeDocument(const Lemmatizer& uk) {
               << durationMs << " ms\n";
 }
 
+// Test abbreviations.txt (abbreviations, initials, year, parentheses)
+void testAbbreviationsFile(const Lemmatizer& uk) {
+    auto tokens = runPipelineOnFile("datasets/technical/abbreviations.txt", uk);
+    assert(countByType(tokens, TokenType::WORD) == 23);
+    assert(countByType(tokens, TokenType::NUMBER) == 1);
+    assert(countByType(tokens, TokenType::PUNCTUATION) == 14);
+    std::cout << "[PASS] abbreviations.txt\n";
+}
+
+// Test dirty_text.txt (extra spaces, tabs, multiple newlines, ellipsis)
+void testDirtyTextFile(const Lemmatizer& uk) {
+    auto tokens = runPipelineOnFile("datasets/technical/dirty_text.txt", uk);
+    assert(countByType(tokens, TokenType::WORD) == 14);
+    assert(countByType(tokens, TokenType::PUNCTUATION) == 2);
+    assert(tokens.back().getSentenceNumber() == 2);
+    std::cout << "[PASS] dirty_text.txt\n";
+}
+
+// Test long_sentece.txt (single very long sentence with commas and hyphenated word)
+void testLongSentenceFile(const Lemmatizer& uk) {
+    auto tokens = runPipelineOnFile("datasets/technical/long_sentence.txt", uk);
+    assert(countByType(tokens, TokenType::WORD) == 82);
+    assert(tokens.back().getSentenceNumber() == 1);
+    std::cout << "[PASS] long_sentence.txt\n";
+}
+
 int main() {
     std::setlocale(LC_ALL, "uk_UA.UTF-8");
 
@@ -139,6 +165,9 @@ int main() {
     testEnglishFile(enLemmatizer);
     testMixedUnicodeFile(ukLemmatizer);
     testRepetitionsFile(ukLemmatizer);
+    testAbbreviationsFile(ukLemmatizer);
+    testDirtyTextFile(ukLemmatizer);
+    testLongSentenceFile(ukLemmatizer);
     testLargeDocument(ukLemmatizer);
 
     std::cout << "All technical & pipeline tests passed!\n";

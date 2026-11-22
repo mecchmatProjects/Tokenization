@@ -13,20 +13,56 @@ StyleProfile::StyleProfile() {
     repetitionIndex = 0.0;
 }
 
-// Getters for rading the statistics
+// Getters for reading the statistics
 int StyleProfile::getTotalWords() const {
     return totalWords;
+}
+
+int StyleProfile::getUniqueWords() const {
+    return uniqueWords;
+}
+
+int StyleProfile::getLemmaCount() const {
+    return lemmaCount;
 }
 
 double StyleProfile::getLexicalDiversity() const {
     return lexicalDiversity;
 }
 
+double StyleProfile::getAverageWordLength() const {
+    return averageWordLength;
+}
+
 double StyleProfile::getAverageSentenceLength() const {
     return averageSentenceLength;
 }
 
-// Setters for updating the stastics (used by analyzers later)
+int StyleProfile::getMaxSentenceLength() const {
+    return maxSentenceLength;
+}
+
+double StyleProfile::getSentenceLengthStdDev() const {
+    return sentenceLengthStdDev;
+}
+
+double StyleProfile::getRepetitionIndex() const {
+    return repetitionIndex;
+}
+
+const std::map<std::string, int>& StyleProfile::getPunctuationStatistics() const {
+    return punctuationStatistics;
+}
+
+const std::map<std::string, double>& StyleProfile::getPartOfSpeechStatistics() const {
+    return partOfSpeechStatistics;
+}
+
+const std::map<std::string, int>& StyleProfile::getNgramStatistics() const {
+    return ngramStatistics;
+}
+
+// Setters for updating the statistics (used by analyzers later)
 void StyleProfile::setTotalWords(int count) {
     totalWords = count;
 }
@@ -42,6 +78,10 @@ void StyleProfile::setLexicalStats(int words, int unique, int lemmas, double div
 void StyleProfile::setSentenceStats(double avgLen, double stdDev) {
     averageSentenceLength = avgLen;
     sentenceLengthStdDev = stdDev;
+}
+
+void StyleProfile::setMaxSentenceLength(int maxLen) {
+    maxSentenceLength = maxLen;
 }
 
 void StyleProfile::setRepetitionIndex(double index) {
