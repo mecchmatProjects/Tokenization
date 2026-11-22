@@ -14,6 +14,7 @@ add_library(litcritic
     src/lexical_analyzer.cpp
     src/preprocessor.cpp
     src/sentence.cpp
+    src/sentence_analyzer.cpp
     src/style_profile.cpp
     src/text_document.cpp
     src/text_loader.cpp
@@ -40,6 +41,10 @@ add_executable(preprocessor_tests tests/preprocessor_tests.cpp)
 target_link_libraries(preprocessor_tests PRIVATE litcritic)
 add_test(NAME preprocessor_tests COMMAND preprocessor_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+add_executable(sentence_analyzer_tests tests/sentence_analyzer_tests.cpp)
+target_link_libraries(sentence_analyzer_tests PRIVATE litcritic)
+add_test(NAME sentence_analyzer_tests COMMAND sentence_analyzer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
 add_executable(tokenizer_tests tests/tokenizer_tests.cpp)
 target_link_libraries(tokenizer_tests PRIVATE litcritic)
 add_test(NAME tokenizer_tests COMMAND tokenizer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
@@ -54,5 +59,6 @@ add_test(NAME PipelineTests COMMAND test_pipeline WORKING_DIRECTORY ${CMAKE_SOUR
 
 
 
+# Main application
 add_executable(litcritic_app main.cpp)
 target_link_libraries(litcritic_app PRIVATE litcritic)
