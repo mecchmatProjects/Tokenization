@@ -2,11 +2,13 @@
 #include <clocale> // Add for aetlocale
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #include "text_loader.h"
 #include "preprocessor.h"
 #include "text_document.h"
 #include "tokenizer.h"
+#include "lemmatizer.h"
 
 
 // Helper function to convert TokenType enum to readable text
@@ -28,16 +30,33 @@ int main() {
 
     std::cout << "Start LitCritic...\n";
 
+
+    // Load dictionaries once before processing documents
+    Lemmatizer ukLemmatizer;
+    if (ukLemmatizer.loadDictionary("datasets/dictionaries/uk_dict.txt")) {
+        std::cout << "Loaded UK dictionary: " << ukLemmatizer.getDictionarySize() << " entries.\n";
+    } else {
+        std::cout << "Warning: Could not load UK dictionary!\n";
+    }
+
+    Lemmatizer enLemmatizer;
+    if (enLemmatizer.loadDictionary("datasets/dictionaries/en_dict.txt")) {
+        std::cout << "Loaded EN dictionary: " << enLemmatizer.getDictionarySize() << " entries.\n";
+    } else {
+        std::cout << "Warning: Could not load EN dictionary!\n";
+    }
+
+
     // Load all documents listed in the CSV catalog
     std::string catalogPath = "datasets/catalog.csv";
     std::vector<TextDocument> documents = TextLoader::loadFromCatalog(catalogPath);
 
-    std::cout << "Loaded " << documents.size() << " documents from catalog.\n\n";
+    std::cout << "\nLoaded " << documents.size() << " documents from catalog.\n\n";
 
     // Iterate through each loaded document
     for (const auto& doc : documents) {
         std::cout << "========================================\n";
-        std::cout << "Document: " << doc.getTitle() << " (" << doc.getYear() << ")\n";
+        std::cout << "Document: " << doc.getTitle() << " (" << doc.getYear() << ") [" << doc.getLanguage() << "]\n";
         std::cout << "========================================\n";
 
         // Keep punctuation and original case so Tokenizer can detect sentences and original words
@@ -45,6 +64,15 @@ int main() {
 
         // Tokenize the cleaned text
         std::vector<Token> tokens = Tokenizer::tokenize(cleanedText);
+
+        // Select the appropriate lemmatizer based on the document language
+        std::string lang = Preprocessor::convertToLowerCase(doc.getLanguage());
+        if (lang == "en" || lang == "english") {
+            enLemmatizer.lemmatizeTokens(tokens);
+        } else {
+            ukLemmatizer.lemmatizeTokens(tokens);
+        }
+
         std::cout << "Total tokens: " << tokens.size() << "\n";
 
         // Print the first 15 tokens as a preview
@@ -57,7 +85,8 @@ int main() {
                       << "Sent #" << t.getSentenceNumber() << " | "
                       << tokenTypeToString(t.getType()) << " | "
                       << "text: \"" << t.getText() << "\" | "
-                      << "norm: \"" << t.getNormalizedText() << "\"\n";
+                      << "norm: \"" << t.getNormalizedText() << "\" | "
+                      << "lemma: \"" << t.getLemma() << "\"\n";
         }
         std::cout << "\n";
     }
