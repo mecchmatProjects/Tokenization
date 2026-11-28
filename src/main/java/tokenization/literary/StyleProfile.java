@@ -3,6 +3,7 @@ package tokenization.literary;
 import tokenization.stats.Frequencies;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -229,5 +230,60 @@ public class StyleProfile {
     /** Частка входжень біграм, які повторюються в тексті. */
     public double getPhraseRepetition() {
         return phraseRepetition;
+    }
+
+    // ---------- Вектор характеристик S(T) = (x1, ..., xn), README_LITCRITIC §2 ----------
+
+    public Map<String, Double> lexicalFeatures() {
+        Map<String, Double> features = new LinkedHashMap<>();
+        features.put("Words", (double) wordCount);
+        features.put("Unique words", (double) uniqueWordCount);
+        features.put("Unique lemmas", (double) uniqueLemmaCount);
+        features.put("TTR", lexicalDiversity);
+        features.put("Avg word length", averageWordLength);
+        features.put("Avg syllables per word", averageSyllables);
+        return features;
+    }
+
+    public Map<String, Double> sentenceFeatures() {
+        Map<String, Double> features = new LinkedHashMap<>();
+        features.put("Sentences", (double) sentenceCount);
+        features.put("Avg sentence length", averageSentenceLength);
+        features.put("Median sentence length", medianSentenceLength);
+        features.put("Max sentence length", (double) maxSentenceLength);
+        features.put("Sentence std deviation", sentenceLengthStdDev);
+        return features;
+    }
+
+    public Map<String, Double> punctuationFeatures() {
+        Map<String, Double> features = new LinkedHashMap<>();
+        features.put("Comma / sentence", commasPerSentence);
+        features.put("Punctuation / sentence", punctuationPerSentence);
+        int sentences = Math.max(sentenceCount, 1);
+        features.put("Exclamation / sentence", (double) getPunctuationCount("!") / sentences);
+        features.put("Question / sentence", (double) getPunctuationCount("?") / sentences);
+        features.put("Dash / sentence", (double) getPunctuationCount("—") / sentences);
+        return features;
+    }
+
+    public Map<String, Double> repetitionFeatures() {
+        Map<String, Double> features = new LinkedHashMap<>();
+        features.put("Repetition index", repetitionIndex);
+        features.put("Adjacent sentence repeats", (double) adjacentSentenceRepeats);
+        features.put("Sentence start repeats", (double) sentenceStartRepeats);
+        features.put("Repeated bigrams", (double) repeatedBigrams);
+        features.put("Repeated trigrams", (double) repeatedTrigrams);
+        features.put("Phrase repetition", phraseRepetition);
+        return features;
+    }
+
+    /** Усі числові характеристики профілю. */
+    public Map<String, Double> toFeatureMap() {
+        Map<String, Double> features = new LinkedHashMap<>();
+        features.putAll(lexicalFeatures());
+        features.putAll(sentenceFeatures());
+        features.putAll(punctuationFeatures());
+        features.putAll(repetitionFeatures());
+        return features;
     }
 }

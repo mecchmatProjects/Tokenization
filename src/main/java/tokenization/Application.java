@@ -1,6 +1,7 @@
 package tokenization;
 
 import tokenization.ui.ConsoleInput;
+import tokenization.ui.LiteraryMenu;
 import tokenization.ui.TokenizerMenu;
 import tokenization.ui.WordMenu;
 
@@ -24,13 +25,15 @@ public class Application {
             System.out.println(" Text Processing Toolkit");
             System.out.println("=================================");
             System.out.println("1. Text tokenizer (ML dataset)");
-            // TODO: 2. Literary text analyzer (README_LITCRITIC.md)
+            System.out.println("2. Literary text analyzer");
             System.out.println("3. Ukrainian word and syllables");
             System.out.println("0. Exit");
 
             int choice = input.readChoice();
             if (choice == 1) {
                 new TokenizerMenu(input).run();
+            } else if (choice == 2) {
+                new LiteraryMenu(input).run();
             } else if (choice == 3) {
                 new WordMenu(input).run();
             } else if (choice == 0) {
